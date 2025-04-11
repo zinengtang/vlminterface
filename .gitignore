@@ -1,0 +1,10 @@
+demo_videos
+demo_websites
+demo_websites
+examples
+test_images
+*mp4
+*ipynb
+*png
+__pycache__/
+*pyc
