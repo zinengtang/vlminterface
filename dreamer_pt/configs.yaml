@@ -15,7 +15,7 @@ defaults:
   reset_every: 0
   device: 'cuda:2'
   compile: True
-  precision: 16
+  precision: 32
   debug: False
   video_pred_log: True
 
@@ -66,7 +66,7 @@ defaults:
   batch_length: 64
   train_ratio: 512
   pretrain: 100
-  model_lr: 1e-4
+  model_lr: 3e-4
   opt_eps: 1e-8
   grad_clip: 1000
   dataset_size: 1000000
@@ -116,7 +116,7 @@ crafter:
   step: 1e6
   action_repeat: 1
   envs: 1
-  train_ratio: 512
+  train_ratio: 180
   video_pred_log: true
   dyn_hidden: 1024
   dyn_deter: 4096
