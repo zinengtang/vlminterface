@@ -1,0 +1,40 @@
+==========self check==========
+next step after self check: critic
+description: Ready
+==============================
+==========critic==========
+next step after critic: brain
+critic info: need short-term plan
+==========================
+==========brain==========
+chat vectordb counts: 0
+skill vectordb counts: 0
+events vectordb counts: 2
+environment vectordb counts: 1
+----------------retrieved info ----------------------
+long_term_plan: 1. **Gather Materials**: Use the /give command to obtain necessary materials such as oak logs, stone bricks, and decorative blocks like red and gold wool for traditional Chinese aesthetics.
+2. **Design the Structure**: Sketch a basic design of the gatehouse, focusing on traditional elements like curved roofs and ornate details.
+3. **Prepare the Site**: Clear the area of any obstacles and flatten the ground if necessary to provide a stable foundation.
+4. **Build the Foundation**: Lay down the base of the gatehouse using stone bricks to ensure stability.
+5. **Construct the Walls**: Use oak logs and other materials to build the walls, incorporating windows and decorative elements.
+6. **Add the Roof**: Create a curved roof using slabs and stairs, paying attention to traditional design elements.
+7. **Decorate**: Add details such as lanterns, banners, and other decorative items to enhance the traditional look.
+8. **Collaborate**: Work with MineflayerBot1 to divide tasks and ensure efficient construction.
+9. **Review and Adjust**: Once the structure is complete, review it for any necessary adjustments or enhancements to achieve the desired aesthetic.
+last 0 short_term_plan:
+recent_chat: 
+retrieved: MineflayerBot0 joined
+ctx_type: chat
+ctx_type: environment
+node_id: node_3, node_count: 3, node_type: environment, description: Day 0, Time 4428: I am at [-2.5, 64, 2.5]I can see: The image shows a grassy landscape with various flowers, including dandelions and a red flower. A character is visible in the background, partially obscured by terrain.
+ctx_type: event
+node_id: node_1, node_count: 1, node_type: event, description: Day : 0, Time :4428, event type: playerJoined, event message: MineflayerBot0 joined
+node_id: node_2, node_count: 2, node_type: event, description: Day : 0, Time :4428, event type: playerJoined, event message: MineflayerBot1 joined
+retrieved: MineflayerBot1 joined
+ctx_type: chat
+ctx_type: environment
+node_id: node_3, node_count: 3, node_type: environment, description: Day 0, Time 4428: I am at [-2.5, 64, 2.5]I can see: The image shows a grassy landscape with various flowers, including dandelions and a red flower. A character is visible in the background, partially obscured by terrain.
+ctx_type: event
+node_id: node_1, node_count: 1, node_type: event, description: Day : 0, Time :4428, event type: playerJoined, event message: MineflayerBot0 joined
+node_id: node_2, node_count: 2, node_type: event, description: Day : 0, Time :4428, event type: playerJoined, event message: MineflayerBot1 joined
+-----------------------------------------------------

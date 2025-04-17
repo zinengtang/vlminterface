@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Video Browser</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 1em;
+    }
+
+    .filters {
+      text-align: center;
+      margin-bottom: 1em;
+    }
+
+    select {
+      font-size: 1.2rem;
+      padding: 0.25em 0.5em;
+      margin: 0 1em;
+      min-width: 150px;
+    }
+
+    #loadMoreContainer {
+      text-align: center;
+      margin-top: 1em;
+    }
+
+    #videoList {
+      display: grid;
+      grid-template-columns: repeat(3, 320px);
+      gap: 1em;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    .video-item {
+      width: 320px;
+    }
+
+    video {
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 style="text-align: center;">Video Browser</h1>
+
+  <div class="filters">
+    <label for="modelSelect">Model:</label>
+    <select id="modelSelect">
+      <option value="all">All</option>
+    </select>
+
+    <label for="gameSelect">Game:</label>
+    <select id="gameSelect">
+      <option value="all">All</option>
+    </select>
+
+    <label for="iterationSelect">Iteration:</label>
+    <select id="iterationSelect">
+      <option value="all">All</option>
+    </select>
+  </div>
+
+  <div id="videoList"></div>
+
+  <div id="loadMoreContainer">
+    <button id="loadMoreBtn" style="font-size: 1.1rem; padding: 0.5em 1em;">Load More</button>
+  </div>
+
+  <script>
+    const VIDEO_ENDPOINT = '/videos'; // returns JSON array of MP4 paths
+    let allVideos = [];
+    let filteredVideos = [];
+
+    let uniqueModels = new Set();
+    let uniqueGames = new Set();
+    let uniqueIterations = new Set();
+
+    const modelSelect = document.getElementById('modelSelect');
+    const gameSelect = document.getElementById('gameSelect');
+    const iterationSelect = document.getElementById('iterationSelect');
+    const videoList = document.getElementById('videoList');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+
+    const VIDEOS_PER_PAGE = 3;
+    let currentIndex = 0;
+
+    // 1) Fetch the list of mp4 files from the server
+    async function fetchVideoList() {
+      try {
+        const response = await fetch(VIDEO_ENDPOINT);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        allVideos = data;
+        parseAndPopulateDropdowns(allVideos);
+        updateVideoList();
+      } catch (error) {
+        console.error('Error fetching video list:', error);
+      }
+    }
+
+    // 2) Parse the filenames to fill dropdown filters
+    function parseAndPopulateDropdowns(files) {
+      uniqueModels.clear();
+      uniqueGames.clear();
+      uniqueIterations.clear();
+
+      files.forEach(file => {
+        // Suppose file is something like "/demo_videos_resized/baseline_dmlab_0_12.mp4"
+        const filename = file.split('/').pop();  // e.g. "baseline_dmlab_0_12.mp4"
+        const nameWithoutExt = filename.split('.')[0]; // e.g. "baseline_dmlab_0_12"
+        const parts = nameWithoutExt.split('_');       // e.g. ["baseline","dmlab","0","12"]
+
+        if (parts.length === 4) {
+          const [modelName, gameName, iteration, episodeId] = parts;
+          uniqueModels.add(modelName);
+          uniqueGames.add(gameName);
+          uniqueIterations.add(iteration);
+        }
+      });
+
+      populateSelect(modelSelect, Array.from(uniqueModels));
+      populateSelect(gameSelect, Array.from(uniqueGames));
+      populateSelect(iterationSelect, Array.from(uniqueIterations));
+    }
+
+    function populateSelect(selectElement, items) {
+      while (selectElement.options.length > 1) {
+        selectElement.remove(1);
+      }
+      items.sort().forEach(item => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item;
+        selectElement.appendChild(option);
+      });
+    }
+
+    // 3) Filter videos based on dropdown selection, reset, then show first batch
+    function updateVideoList() {
+      videoList.innerHTML = '';
+      currentIndex = 0;
+
+      const selectedModel = modelSelect.value;
+      const selectedGame = gameSelect.value;
+      const selectedIteration = iterationSelect.value;
+
+      filteredVideos = allVideos.filter(file => {
+        const filename = file.split('/').pop();
+        const nameWithoutExt = filename.split('.')[0];
+        const parts = nameWithoutExt.split('_');
+        if (parts.length !== 4) return false;
+
+        const [modelName, gameName, iteration, episodeId] = parts;
+        const matchModel = (selectedModel === 'all' || modelName === selectedModel);
+        const matchGame = (selectedGame === 'all' || gameName === selectedGame);
+        const matchIteration = (selectedIteration === 'all' || iteration === selectedIteration);
+
+        return matchModel && matchGame && matchIteration;
+      });
+
+      showMoreVideos();
+    }
+
+    // 4) Show the next chunk of videos
+    function showMoreVideos() {
+      const endIndex = currentIndex + VIDEOS_PER_PAGE;
+      const subset = filteredVideos.slice(currentIndex, endIndex);
+
+      subset.forEach(file => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('video-item');
+
+        // Create the <video> element
+        const videoEl = document.createElement('video');
+        videoEl.src = file;
+        videoEl.controls = true;
+        // Optionally autoplay, loop, etc.:
+        // videoEl.autoplay = true;
+        // videoEl.loop = true;
+
+        wrapper.appendChild(videoEl);
+        videoList.appendChild(wrapper);
+      });
+
+      currentIndex = endIndex;
+
+      if (currentIndex >= filteredVideos.length) {
+        loadMoreBtn.style.display = 'none';
+      } else {
+        loadMoreBtn.style.display = 'inline-block';
+      }
+    }
+
+    function attachEventListeners() {
+      modelSelect.addEventListener('change', updateVideoList);
+      gameSelect.addEventListener('change', updateVideoList);
+      iterationSelect.addEventListener('change', updateVideoList);
+      loadMoreBtn.addEventListener('click', showMoreVideos);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      attachEventListeners();
+      fetchVideoList();
+    });
+  </script>
+</body>
+
+</html>
