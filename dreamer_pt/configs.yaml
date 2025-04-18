@@ -13,7 +13,7 @@ defaults:
   eval_episode_num: 10
   log_every: 1e4
   reset_every: 0
-  device: 'cuda:2'
+  device: 'cuda:1'
   compile: True
   precision: 32
   debug: False
@@ -62,7 +62,7 @@ defaults:
   initial: 'learned'
 
   # Training
-  batch_size: 48
+  batch_size: 16
   batch_length: 64
   train_ratio: 512
   pretrain: 100
@@ -154,7 +154,7 @@ minecraft:
   eval_episode_num: 0
   eval_every: 1e4
   action_repeat: 1
-  train_ratio: 16
+  train_ratio: 15
   video_pred_log: true
   dyn_hidden: 1024
   dyn_deter: 4096
