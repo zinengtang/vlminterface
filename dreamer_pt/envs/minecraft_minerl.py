@@ -119,7 +119,7 @@ class MineRLEnv(EnvSpec):
         return []
 
 
-class BreakSpeedMultiplier(handler.Handler):
+class BreakSpeedMultiplier(handlers.Handler):
     def __init__(self, multiplier=1.0):
         self.multiplier = multiplier
 
@@ -130,7 +130,7 @@ class BreakSpeedMultiplier(handler.Handler):
         return "<BreakSpeedMultiplier>{{multiplier}}</BreakSpeedMultiplier>"
 
 
-class Gamma(handler.Handler):
+class Gamma(handlers.Handler):
     def __init__(self, gamma=2.0):
         self.gamma = gamma
 
