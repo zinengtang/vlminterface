@@ -1,4 +1,5 @@
 from minerl.herobraine.env_spec import EnvSpec
+from minerl.herobraine.hero import handler
 from minerl.herobraine.hero import handlers
 from minerl.herobraine.hero import mc
 from minerl.herobraine.hero.mc import INVERSE_KEYMAP
@@ -119,7 +120,7 @@ class MineRLEnv(EnvSpec):
         return []
 
 
-class BreakSpeedMultiplier(handlers.Handler):
+class BreakSpeedMultiplier(handler.Handler):
     def __init__(self, multiplier=1.0):
         self.multiplier = multiplier
 
@@ -130,7 +131,7 @@ class BreakSpeedMultiplier(handlers.Handler):
         return "<BreakSpeedMultiplier>{{multiplier}}</BreakSpeedMultiplier>"
 
 
-class Gamma(handlers.Handler):
+class Gamma(handler.Handler):
     def __init__(self, gamma=2.0):
         self.gamma = gamma
 
