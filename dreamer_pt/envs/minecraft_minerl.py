@@ -1,5 +1,4 @@
 from minerl.herobraine.env_spec import EnvSpec
-from minerl.herobraine.hero import hpythoandler
 from minerl.herobraine.hero import handlers
 from minerl.herobraine.hero import mc
 from minerl.herobraine.hero.mc import INVERSE_KEYMAP
