@@ -1,1 +1,1 @@
-python3 dreamer.py --configs minecraft --task minecraft_diamond --logdir ./logdir/minecraft_diamond
+xvfb-run python3 dreamer.py --configs minecraft --task minecraft_diamond --logdir ./logdir/minecraft_diamond
