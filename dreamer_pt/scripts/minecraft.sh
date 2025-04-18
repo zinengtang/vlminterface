@@ -1,1 +1,1 @@
-xvfb-run python3 dreamer.py --configs minecraft --task minecraft_diamond --logdir ./logdir/minecraft_diamond
+DISPLAY=:1 python3 dreamer.py --configs minecraft --task minecraft_diamond --logdir ./logdir/minecraft_diamond > log.out 2>&1
