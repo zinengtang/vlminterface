@@ -1,0 +1,2 @@
+2025-04-22 17:49:47 nlp3 process_watcher[2548017] INFO Process watcher started between parent 2472657 and child 2547051 
+2025-04-22 18:39:07 nlp3 process_watcher[2548017] INFO Parent is not running, hence we need terminate the child.
