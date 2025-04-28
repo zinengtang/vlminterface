@@ -1,0 +1,13 @@
+==========self check==========
+next step after self check: critic
+description: Ready
+==============================
+==========critic==========
+next step after critic: brain
+critic info: need short-term plan
+==========================
+==========brain==========
+chat vectordb counts: 0
+skill vectordb counts: 0
+events vectordb counts: 2
+environment vectordb counts: 1

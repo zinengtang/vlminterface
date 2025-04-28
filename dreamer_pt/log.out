@@ -1,0 +1,233 @@
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+Logdir logdir/minecraft_diamond
+Create envs.
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+Minecraft action space (25): noop, attack, turn_up, turn_down, turn_left, turn_right, forward, back, left, right, jump, place_dirt, craft_planks, craft_stick, craft_crafting_table, place_crafting_table, craft_wooden_pickaxe, craft_stone_pickaxe, craft_iron_pickaxe, equip_stone_pickaxe, equip_wooden_pickaxe, equip_iron_pickaxe, craft_furnace, place_furnace, smelt_iron_ingot
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+/home/terran/miniconda3/envs/vlminterface/lib/python3.11/site-packages/gym/spaces/box.py:78: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+<frozen runpy>:128: RuntimeWarning: 'minerl.utils.process_watcher' found in sys.modules after import of package 'minerl.utils', but prior to execution of 'minerl.utils.process_watcher'; this may result in unpredictable behaviour
+Action Space Box(0.0, 1.0, (25,), float32)
+Prefill dataset (2500 steps).
+Traceback (most recent call last):
+  File "/home/terran/projects/worldmodel/dreamer_pt/parallel.py", line 129, in _receive
+    message, callid, payload = self._pipe.recv()
+                               ^^^^^^^^^^^^^^^^^
+  File "/home/terran/miniconda3/envs/vlminterface/lib/python3.11/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/home/terran/miniconda3/envs/vlminterface/lib/python3.11/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/home/terran/miniconda3/envs/vlminterface/lib/python3.11/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/terran/projects/worldmodel/dreamer_pt/dreamer.py", line 365, in <module>
+    main(parser.parse_args(remaining))
+  File "/home/terran/projects/worldmodel/dreamer_pt/dreamer.py", line 272, in main
+    state = tools.simulate(
+            ^^^^^^^^^^^^^^^
+  File "/home/terran/projects/worldmodel/dreamer_pt/tools.py", line 155, in simulate
+    results = [r() for r in results]
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/terran/projects/worldmodel/dreamer_pt/tools.py", line 155, in <listcomp>
+    results = [r() for r in results]
+               ^^^
+  File "/home/terran/projects/worldmodel/dreamer_pt/parallel.py", line 193, in __call__
+    self._result = self._receive(self._callid)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/terran/projects/worldmodel/dreamer_pt/parallel.py", line 131, in _receive
+    raise RuntimeError("Lost connection to worker.")
+RuntimeError: Lost connection to worker.

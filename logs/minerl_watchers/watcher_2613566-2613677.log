@@ -1,0 +1,2 @@
+2025-04-22 18:11:42 nlp3 process_watcher[2613785] INFO Process watcher started between parent 2613566 and child 2613677 
+2025-04-22 18:12:11 nlp3 process_watcher[2613785] INFO Child is not running anymore, launcher can terminate.

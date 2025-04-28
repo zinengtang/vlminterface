@@ -1,0 +1,1 @@
+python3 dreamer.py --configs crafter --task crafter_reward --logdir ./logdir/crafter_reward
