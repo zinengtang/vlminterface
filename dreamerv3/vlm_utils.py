@@ -27,15 +27,17 @@ import os
 import json
 from typing import List, Optional
 
+import re
 import torch
 from PIL import Image
 from transformers import (
     AutoProcessor,
-    Qwen2_5_VLForConditionalGeneration,
-    LlavaForConditionalGeneration,
-    Gemma3ForConditionalGeneration,
+    # Qwen2_5_VLForConditionalGeneration,
+    # LlavaForConditionalGeneration,
+    # Gemma3ForConditionalGeneration,
     AutoModelForCausalLM,
-    AutoTokenizer
+    AutoTokenizer,
+    pipeline
 )
 
 # Qwen helper util (shipped with the official repo)
@@ -105,6 +107,100 @@ CLIMB_PROMPT = """
     Based on what you see, output ONE short, medium-level command that best describes what the agent
     needs to do in order to reach a high latitude. Reply with an imperative phrase, no punctuation.
     If the target distance is far, try to break it down into smallers steps and reply step 1 like "go to the forest".
+"""
+
+GENERAL_PROMPT = """
+You are helpful AI assistant.
+You are controlling the agent playing a game.
+Analyze a series of movement actions to summarize as a medium to high level imperative.
+Keep your thought process succinct. And always wrap the final high level action command with ##...##
+Diversify your language style. Be creative. Make your instruction randomly from low level to high level.
+Don't output instruction that has anything other than the action description.
+Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
+"""
+
+MINECRAFT_PROMPT = """
+You are helpful AI assistant.
+You are controlling the agent playing minecraft climbing the tech tree.
+Analyze a series of movement actions to summarize as a medium to high level imperative.
+
+Tips:
+attacks could be breaking something in Minecraft.
+
+Keep your thought process succinct. And always wrap the final high level action command with ##...##
+Diversify your language style. Be creative. Make your instruction randomly from low level to high level.
+Don't output instruction that has anything other than the action description.
+Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
+"""
+
+# ---------------------------------------------------------------------------
+OVERCOOKED_PROMPT = """
+You are helpful AI assistant.
+In overcooked game, analyze a series of movement actions of a agent to summarize as a medium to high level imperative.
+
+For example (not relevent to actual environments):
+with input being 'Action List: south, south, interact onion' output '##Grab onions##'
+with input being 'Action List: south, west, interact onion, north, north, interact tomatoes' output '##Grab tomatoes##'
+with input being 'Action List: stay, stay, stay' output '##Stay##'
+with input being 'Action List: west holding onion, north holding onion, interact pot' output '##Delever onion to pot##'
+with input being 'Action List: west holding dish, north holding dish' output '##Deliver dish##'
+with input being 'Action List: north, north, north, north' output '##Go all the way north##'
+with input being 'Action List: south, west' output nothing because this movement does not make sense
+
+other real examples:
+actions: south hold dish at onion, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion, stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot, south hold soup at pot
+caption: Collect dish, pass onion station, bowl soup at pot.
+
+actions: west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion, interact onion, south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion
+caption: Collect onions; ferry them from dispenser across kitchen.
+
+actions: north hold onion at onion, stay hold onion at onion, south hold onion at onion, west hold onion at onion
+caption: Move one onion from dispenser to adjacent station.
+
+actions: west, east, south, east, south at onion, interact onion, west hold onion at onion
+caption: Grab an onion; relocate toward adjacent station.
+
+actions: stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot
+caption: Carry dish to pot; ladle soup into bowl.
+
+actions: south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion
+caption: Collect onions from dispenser and consolidate at workstation.
+
+actions: south at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion
+caption: Stockpile onions from dispenser; continue gathering for recipe.
+
+actions: west hold onion at onion, east hold onion, north hold onion at onion, south hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion, west hold onion at onion, stay hold onion, east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion
+caption: Gather onions for cooking; stage them near workstation.
+
+actions: south hold onion at onion, south hold onion at onion, west hold onion at onion, stay hold onion
+caption: Keep holding onion; adjust position and pause.
+
+actions: south hold onion at onion, west hold onion at onion, north hold onion, stay hold onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion
+caption: Carry onion while navigating between stations.
+
+actions: north hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion
+caption: Transport onion around stations to staging area.
+
+actions: interact serve, south at serve, stay at serve, west at serve, stay, west, north at dish, stay at onion, south at onion, south at dish, interact dish, south hold dish at dish, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion
+caption: Serve finished order; restock a clean dish near onion.
+
+actions: west hold onion at onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion
+caption: Continuously take onions; stage supply across kitchen.
+
+actions: east hold onion, north hold onion at onion, west hold onion at onion, stay hold onion, south hold onion, east hold onion, north hold onion at onion, stay hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion
+caption: Shuttle onion between stations to maintain supply.
+
+actions: north hold dish at dish, stay hold dish at onion, south hold dish at onion, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion, stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot, south hold soup at pot, stay hold soup, east hold soup
+caption: Bring dish to pot; bowl soup and depart toward serving.
+
+actions: east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion
+caption: Grab an onion; shuttle between stations to build stock.
+
+And always wrap the final high level action command with ##...##
+Keep the output as succinct imperative within 16 words.
+Don't specify the exact movement too much but don't be too general either.
+Don't add anything that didn't appear in the actions, e.g., where did the agent deliver the stuff to.
+Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
 """
 
 # ---------------------------------------------------------------------------
@@ -178,18 +274,24 @@ class VLMWrapper:
         if model_type == "phi3":
             torch.random.manual_seed(0) 
             self.model = AutoModelForCausalLM.from_pretrained( 
-                "microsoft/Phi-3-mini-128k-instruct", 
+                "microsoft/Phi-3-medium-4k-instruct", 
                 torch_dtype=dtype,  
                 trust_remote_code=True,  
             ).to(self.device).eval()
-            self.tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-128k-instruct") 
-            self.processor = AutoProcessor.from_pretrained("microsoft/Phi-3-mini-128k-instruct")
+            self.tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct") 
+            self.processor = AutoProcessor.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
+            self.pipe = pipeline( 
+                "text-generation", 
+                model=self.model, 
+                tokenizer=self.tokenizer, 
+            ) 
+
             # messages = [ 
             #     {"role": "system", "content": "Summarize these actions."}, 
             # ]
 
         if model_type == "qwen":
-            self.model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
+            self.model_id = "Qwen/Qwen2.5-VL-7B-Instruct"
             self.model = (
                 Qwen2_5_VLForConditionalGeneration.from_pretrained(
                     self.model_id, torch_dtype=dtype, low_cpu_mem_usage=True
@@ -197,6 +299,7 @@ class VLMWrapper:
                 .to(self.device)
                 .eval()
             )
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
             self.processor = AutoProcessor.from_pretrained(self.model_id)
 
         elif model_type == "llava":
@@ -232,7 +335,7 @@ class VLMWrapper:
         self,
         frames: List[Image.Image],
         action_lists = None,
-        max_new_tokens: int = 32,
+        max_new_tokens: int = 128,
         system_prompt: str | None = None,
         check_proactive: bool = False
     ) -> List[str]:
@@ -244,42 +347,50 @@ class VLMWrapper:
         img_base64 = pil_to_data_uri(frames[0])
         # Build per‑item conversations expected by each model
         if self.model_type == "phi3":
-            convs = []
-            if action_lists is not None:
-                prompt_string = f"{SUMMARIZE_BASE_PROMPT} Action list: {action_lists}"
-            else:
-                prompt_string = f"{sys_prompt}"
+            # prompt_string = f"{MINECRAFT_PROMPT} Action list: {action_lists}"
+            # prompt_string = f"{GENERAL_PROMPT} Action list: {action_lists}"
+            prompt_string = f"{OVERCOOKED_PROMPT} Action list: {action_lists}"
             # for acts in action_lists:
-            convs.append(
+            convs = [
+                {"role": "system", "content": "You are a helpful AI assistant."}, 
                 {
                     "role": "user",
                     "content": prompt_string
                 }
-            )
+            ]
             text_batch = self.processor.apply_chat_template(
                 convs, tokenize=False, add_generation_prompt=True,
             )
-            inputs = self.processor(
-                text=text_batch,
-                padding=True,
-                return_tensors="pt",
-            ).to(self.device).to(self.dtype)
-            gen_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
-            outs = self.processor.batch_decode(
-                gen_ids[:, inputs.input_ids.shape[1]:],
-                skip_special_tokens=True,
-                clean_up_tokenization_spaces=False,
-            )
+            generation_args = { 
+                "max_new_tokens": 16, 
+                "return_full_text": False, 
+                "temperature": 0.8, 
+                "do_sample": False, 
+            } 
+
+            output = self.pipe(convs, **generation_args) 
+            outs = [output[0]['generated_text']]
+            # inputs = self.processor(
+            #     text=text_batch,
+            #     padding=True,
+            #     return_tensors="pt",
+            # ).to(self.device).to(self.dtype)
+            # gen_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+            # outs = self.processor.batch_decode(
+            #     gen_ids[:, inputs.input_ids.shape[1]:],
+            #     skip_special_tokens=True,
+            #     clean_up_tokenization_spaces=False,
+            # )
             if check_proactive:
                 return 'YES' in outs[0]
-            return [o.strip() for o in outs]
+            return re.findall(r"##(.*?)##", outs[0])
 
         if self.model_type == "qwen":
             convs = []
             if action_lists is not None:
-                prompt_string = f"{SUMMARIZE_BASE_PROMPT} Action list: {action_lists}"
+                prompt_string = f"{OVERCOOKED_PROMPT} Action list: {action_lists}"
             else:
-                prompt_string = f"{sys_prompt}"
+                prompt_string = f"{OVERCOOKED_PROMPT}"
             # for acts in action_lists:
             convs.append(
                 {
@@ -304,14 +415,20 @@ class VLMWrapper:
                 return_tensors="pt",
             ).to(self.device, self.dtype)
             gen_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+            # print(self.processor.batch_decode(
+            #     gen_ids,
+            #     skip_special_tokens=True,
+            #     clean_up_tokenization_spaces=False,
+            # ))
             outs = self.processor.batch_decode(
                 gen_ids[:, inputs.input_ids.shape[1] :],
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=False,
             )
+            # print(outs)
             if check_proactive:
                 return 'YES' in outs[0]
-            return [o.strip() for o in outs]
+            return re.findall(r"##(.*?)##", outs[0])
 
         elif self.model_type == "llava":
             convs = []

@@ -46,7 +46,7 @@ defaults:
     chunksize: 1024
 
   run:
-    steps: 5e6
+    steps: 1e10
     duration: 0
     train_ratio: 32.0
     log_every: 120
@@ -57,7 +57,7 @@ defaults:
     eval_eps: 1
     report_batches: 1
     from_checkpoint: ''
-    episode_timeout: 120
+    episode_timeout: 180
     actor_addr: 'localhost:{auto}'
     replay_addr: 'localhost:{auto}'
     logger_addr: 'localhost:{auto}'
@@ -159,6 +159,10 @@ size400m: &size400m
 
 minecraft:
   task: minecraft_diamond
+
+mindcraft:
+  task: mindcraft_standard
+  run: {steps: 2.6e7, train_ratio: 32}
 
 meltingpot:
   task: meltingpot_pure_coordination_in_the_matrix__arena

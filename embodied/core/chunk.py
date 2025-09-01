@@ -8,7 +8,7 @@ import numpy as np
 
 class Chunk:
 
-  __slots__ = ('time', 'uuid', 'succ', 'length', 'size', 'data', 'saved')
+  __slots__ = ('time', 'uuid', 'succ', 'length', 'size', 'data', 'saved', 'last_step')
 
   def __init__(self, size=1024):
     self.time = elements.timestamp(millis=True)
@@ -20,6 +20,7 @@ class Chunk:
     self.size = size
     self.data = None
     self.saved = False
+    self.last_step = 0
 
   def __repr__(self):
     return f'Chunk({self.filename})'

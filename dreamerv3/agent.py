@@ -11,6 +11,7 @@ import numpy as np
 import optax
 
 from PIL import Image
+import random
 
 from . import rssm
 
@@ -28,6 +29,30 @@ def f(x):
   jax.debug.print("🤯 {x} 🤯", x=x)
   return x
 
+class NullVec(nj.Module):
+  def __call__(self, like: jnp.ndarray):
+    """Return a learned null vector broadcast to like[..., D]."""
+    D = like.shape[-1]
+    zeros = jnp.zeros((*like.shape[:-1], 1), like.dtype)  # acts as a constant
+    # Linear(1→D) on zeros => output == bias (shared vector), broadcast over batch/time
+    return self.sub('lin', nn.Linear, D)(zeros)            # [..., D]
+
+class AlignHead(nj.Module):
+  def __init__(self, dim=128):
+    self.dim = dim
+
+  def __call__(self, state_vec, instr_vec):
+    # Project both to the same dim; params live under this module.
+    z_s = self.sub('state_proj', nn.Linear, self.dim)(nn.cast(state_vec))
+    z_i = self.sub('instr_proj', nn.Linear, self.dim)(nn.cast(instr_vec))
+    return z_s, z_i
+
+def _l2norm(x, eps=1e-8):
+  x32 = x.astype(jnp.float32)
+  n = jnp.linalg.norm(x32, ord=2, axis=-1, keepdims=True)
+  x32 = x32 / jnp.maximum(n, eps)
+  return x32.astype(x.dtype)
+
 class Agent(embodied.jax.Agent):
 
   banner = [
@@ -41,28 +66,13 @@ class Agent(embodied.jax.Agent):
     self.obs_space = obs_space
     self.act_space = act_space
     self.config = config
-    # if self.config.use_vlm:
-    #   import torch
-    #   from vlm_utils import VLMWrapper
-    #   from transformers import AutoTokenizer, FlaxT5EncoderModel
-    #   self.vlm = VLMWrapper(device=config.vlm_device,
-    #                         dtype=torch.bfloat16)
-    #   self.tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-    #   self.text_encoder = text_encoder
-    #   self.text_dim = self.text_encoder.config.d_model   # e.g. 768
-    #   proj_dim = config.text_mlp['units']
-    #   # Suppose proj_dim = 128
-    #   self.text_proj = nn.Linear(proj_dim, name='text_proj')
-    #   self.dummy_pil = Image.fromarray(
-    #       np.random.randint(0, 256, (64,64,3), dtype=np.uint8)
-    #     )
 
     exclude = ('is_first', 'is_last', 'is_terminal', 'reward')
     enc_space = {k: v for k, v in obs_space.items() if k not in exclude}
     dec_space = {k: v for k, v in obs_space.items() if k not in exclude}
     self.enc = {
         'simple': rssm.Encoder,
-    }[config.enc.typ](enc_space, **config.enc[config.enc.typ], name='enc')
+    }[config.enc.typ](enc_space, text_encoder=text_encoder, **config.enc[config.enc.typ], name='enc')
     self.dyn = {
         'rssm': rssm.RSSM,
     }[config.dyn.typ](act_space, **config.dyn[config.dyn.typ], name='dyn')
@@ -110,8 +120,15 @@ class Agent(embodied.jax.Agent):
 
     self.modules = [
         self.dyn, self.enc, self.dec, self.rew, self.con, self.pol, self.val]
-    # if self.config.use_vlm:
-    #   self.modules += [self.text_proj]
+    
+    stop_cfg = getattr(config, 'stophead', config.conhead)
+    stop_space = elements.Space(np.int32, (), 0, 2)
+    self.stop = embodied.jax.MLPHead(stop_space, **stop_cfg, name='stop')
+    self.modules.append(self.stop)
+    self.config.setdefault('stop_threshold', 0.65)  # for hard gating if you want
+
+    self.null = NullVec(name='instr_null')
+    self.modules.append(self.null)  # so its params get optimized
 
     self.opt = embodied.jax.Optimizer(
         self.modules, self._make_opt(**config.opt), summary_depth=1,
@@ -121,12 +138,12 @@ class Agent(embodied.jax.Agent):
     rec = scales.pop('rec')
     scales.update({k: rec for k in dec_space})
     scales['bc'] = 1.0
-
+    scales.setdefault('stop', 1.0)  # tune 0.3–2.0
     self.scales = scales
 
   @property
   def policy_keys(self):
-    return '^(enc|dyn|dec|pol)/'
+    return '^(enc|dyn|dec|pol|stop|instr_null)/'
 
   @property
   def ext_space(self):
@@ -150,10 +167,6 @@ class Agent(embodied.jax.Agent):
 
   def init_train(self, batch_size):
     carry = self.init_policy(batch_size)
-    # if self.config.use_vlm:
-    #   fwd_dtype = self.config.jax.compute_dtype
-    #   dummy = jnp.zeros((batch_size, self.text_dim), dtype=fwd_dtype)
-    #   _ = self.text_proj(dummy)
     return carry
 
   def init_report(self, batch_size):
@@ -186,8 +199,7 @@ class Agent(embodied.jax.Agent):
     pooled = jnp.mean(hidden, axis=1).astype(dtype)
     return pooled  # (batch, hidden_dim)
 
-  def policy(self, carry, obs, mode='train'):
-
+  def policy(self, carry, obs, mode='train', return_stop_token=False):
     
     (enc_carry, dyn_carry, dec_carry, prevact) = carry
     kw = dict(training=False, single=True)
@@ -200,43 +212,84 @@ class Agent(embodied.jax.Agent):
       dec_carry, dec_entry, recons = self.dec(dec_carry, feat, reset, **kw)
 
     out = {}
-    # if self.config.use_vlm:
-    #   # convert current frame to PIL
-    #   frame = obs['image']  # JAX array (batch, H, W, C)
-    #   frames = []
-    #   for i in range(frame.shape[0]):
-    #       img = np.array(frame[i])
-    #       if img.dtype != np.uint8:
-    #           img = (255 * img).astype(np.uint8)
-    #       frames.append(Image.fromarray(img))
-    #   # map prevact IDs to strings
-    #   # act_ids = np.stack([prevact[k] for k in prevact], axis=-1)
-    #   actions = []
-    #   # for row in act_ids:
-    #   #     # assume binary flags or discrete IDs in prevact
-    #   #     actions.append([ACTION_LUT[int(a)] for a in row.tolist()])
-    #   captions, text_feat = self.sample_with_vlm(frames, actions)
-    #   # broadcast text_feat into feature dimension
-    #   # feat tensor has shape (batch, N) after feat2tensor
-    #   # so concatenate along feature axis
-    #   feat_tensor = self.feat2tensor(feat)
-    #   proj_text = self.text_proj(text_feat)
-    #   feat = jnp.concatenate([feat_tensor, proj_text], axis=-1)
-    #   out['captions'] = captions
-    # else:
-    feat = self.feat2tensor(feat)
+    feat_vec_base = self.feat2tensor(feat)
 
-    policy = self.pol(feat, bdims=1)
-    act = sample(policy)
+    instr = enc_entry['instr']
+    instr = instr * (1.0 / jnp.sqrt(instr.shape[-1]).astype(instr.dtype))
+    stop_inp = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
+    p_stop = self.stop(stop_inp, 1).prob(1)  # [B]
+    # Learned null vector (shared across batch/time at eval)
+    null_vec = self.null(instr)
+    gate = (1.0 - sg(p_stop))[..., None]  # [B,1]
+    blended = gate * instr + (1.0 - gate) * nn.cast(null_vec)  # [B,D]
+    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended)], -1)
+
+    policy = self.pol(feat_vec, bdims=1)
+    # act = sample(policy)
+
+    if False:
+       # Generate uniform random actions for each action key
+        uniform_actions = {}
+        for key, space in self.act_space.items():
+            batch_shape = feat_vec.shape[:-1]  # Get batch dimensions
+            action_shape = (*batch_shape, *space.shape)  # Combine batch + action dims
+            
+            if space.discrete:
+                # For discrete actions, sample uniformly from the action range
+                # Use the space bounds directly without trying to extract concrete values
+                uniform_actions[key] = jax.random.randint(
+                    nj.seed(), 
+                    shape=action_shape, 
+                    minval=space.low, 
+                    maxval=space.high
+                )
+            else:
+                # For continuous actions, sample uniformly from the action range
+                uniform_actions[key] = jax.random.uniform(
+                    nj.seed(),
+                    shape=action_shape,
+                    minval=space.low,
+                    maxval=space.high
+                )
+        
+        # Sample from policy
+        policy_actions = sample(policy)
+        
+        # Decide whether to use uniform or policy action
+        use_uniform = jax.random.uniform(nj.seed(), shape=feat_vec.shape[:-1]) < 0.1
+        
+        # Mix uniform and policy actions
+        act = {}
+        for key in self.act_space.keys():
+            # Expand use_uniform to match action dimensions if needed
+            if len(self.act_space[key].shape) > 0:
+                use_uniform_expanded = jnp.expand_dims(use_uniform, axis=-1)
+                for _ in range(len(self.act_space[key].shape) - 1):
+                    use_uniform_expanded = jnp.expand_dims(use_uniform_expanded, axis=-1)
+            else:
+                use_uniform_expanded = use_uniform
+                
+            act[key] = jnp.where(
+                use_uniform_expanded,
+                uniform_actions[key],
+                policy_actions[key]
+            )
+
+    else:
+        # Original behavior - just sample from policy
+        act = sample(policy)
     
     out['finite'] = elements.tree.flatdict(jax.tree.map(
         lambda x: jnp.isfinite(x).all(range(1, x.ndim)),
         dict(obs=obs, carry=carry, tokens=tokens, feat=feat, act=act)))
-    carry = (enc_carry, dyn_carry, dec_carry, act)
+    carry = (enc_carry, dyn_carry,  dec_carry, act)
     if self.config.replay_context:
       out.update(elements.tree.flatdict(dict(
           enc=enc_entry, dyn=dyn_entry, dec=dec_entry)))
-    return carry, act, out
+    if return_stop_token:
+      return carry, act, out, p_stop
+    else:
+      return carry, act, out
 
   def train(self, carry, data):
     carry, obs, prevact, stepid = self._apply_replay_context(carry, data)
@@ -280,18 +333,44 @@ class Agent(embodied.jax.Agent):
     dec_carry, dec_entries, recons = self.dec(
         dec_carry, repfeat, reset, training)
 
+    instr = enc_entries['instr']
+    instr = instr * (1.0 / jnp.sqrt(instr.shape[-1]).astype(instr.dtype))
+
     demo_ids = obs['action_ids']
-    mask  = (demo_ids != -100).astype(f32)       # (B,T)
+    mask_bool = (demo_ids != 0)                               # (B,T) bool
+    mask_f32  = mask_bool.astype(jnp.float32)                    # for weighting
+
     oh = jnp.clip(demo_ids, 0)
 
-    action_policy = logp = self.pol(self.feat2tensor(repfeat), 2)['action']
-    if 'Categorical' in action_policy.__class__.__name__:
-      logp = self.pol(self.feat2tensor(repfeat), 2)['action'].logp(oh)
-      losses['bc'] = -(logp * mask) / jnp.clip(mask, 1)
-    else:
-      logp = self.pol(self.feat2tensor(repfeat), 2)['action'].output.logp(oh)
-      losses['bc'] = -(logp * mask).sum(-1) / jnp.clip(mask.sum(-1), 1)
+    feat_vec_base = self.feat2tensor(repfeat)
 
+    # mask: [B,T] bool where BC actions are provided
+    next_mask_bool = jnp.concatenate(
+        [mask_bool[:, 1:], jnp.zeros_like(mask_bool[:, :1])], 1  # (B,T) bool
+    )
+    stop_label = (mask_bool & (~next_mask_bool)).astype(jnp.float32)   # 1 at last BC step
+    stop_weight = mask_f32
+    if stop_label.ndim > 2:
+      stop_label = stop_label[:, :, 0]
+      stop_weight = stop_weight[:, :, 0]
+    stop_inp_train = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)  # in loss()
+    stop_pred = self.stop(stop_inp_train, 2)
+    losses['stop'] = stop_weight * stop_pred.loss(stop_label)
+
+    p_stop_train = stop_pred.prob(1)                # [B,T]
+    null_vec = self.null(instr)
+    gate = (1.0 - sg(p_stop_train))[..., None]
+    blended_instr = gate * instr + (1.0 - gate) * nn.cast(null_vec)
+    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended_instr)], -1)
+
+
+    action_policy = self.pol(feat_vec, 2)['action']
+    if 'Categorical' in action_policy.__class__.__name__:
+      logp = action_policy.logp(oh)
+      losses['bc'] = -(logp * mask_f32) / jnp.maximum(mask_f32.sum(axis=1, keepdims=True), 1.0)
+    else:
+      logp = action_policy.output.logp(oh)
+      losses['bc'] = -(logp * mask_f32).sum(-1) / jnp.maximum(mask_f32.sum(-1).sum(axis=1, keepdims=True), 1.0)
 
     inp = sg(self.feat2tensor(repfeat), skip=self.config.reward_grad)
     losses['rew'] = self.rew(inp, 2).loss(obs['reward'])
@@ -305,34 +384,30 @@ class Agent(embodied.jax.Agent):
       target = f32(value) / 255 if isimage(space) else value
       losses[key] = recon.loss(sg(target))
 
+    
     B, T = reset.shape
     shapes = {k: v.shape for k, v in losses.items()}
     assert all(x == (B, T) for x in shapes.values()), ((B, T), shapes)
 
+    # has_supervised_data = jnp.any(mask > 0)
     # Imagination
     K = min(self.config.imag_last or T, T)
     H = self.config.imag_length
     starts = self.dyn.starts(dyn_entries, dyn_carry, K)
+    instrK     = instr[:, -K:]
+    instr_flat = instrK.reshape((B * K, -1))
 
-    # if self.config.use_vlm:
-    #   text_feat = self.sample_with_vlm(captions, B, T, jnp.bfloat16)
-    #   print('text_feat shape:', text_feat.shape, text_feat.dtype)
-    #   proj_text = self.text_proj(text_feat)
-    #   B, D = proj_text.shape
-    #   proj_block = proj_text[:, None, :].repeat(K, axis=1)
-    #   proj_trans = proj_block.transpose(1, 0, 2)
-    #   proj_interleaved = proj_trans.reshape(B * K, D)
-
-    # policyfn = lambda feat: sample(
-    #     self.pol(
-    #       jnp.concatenate([
-    #         self.feat2tensor(feat),          # (batch, wm_feat_dim)
-    #         proj_interleaved],       # (batch, proj_dim)
-    #       axis=-1),       # → (batch, wm_feat_dim+proj_dim)
-    #     1)                                   # bdims=1
-    # )
-    # print(starts)
-    policyfn = lambda feat: sample(self.pol(self.feat2tensor(feat), 1))
+    def policyfn(feat):                                     # feat: (B*K, F)
+      f = self.feat2tensor(feat)                          # (B*K, F)
+      stop_inp = jnp.concatenate([f, nn.cast(instr_flat)], -1)   # [B*K,F+D]
+      p_stop_im = self.stop(stop_inp, 1).prob(1)                 # [B*K]
+      null_flat = self.null(instr_flat)
+      gate = (1.0 - sg(p_stop_im))[..., None]                          # [B*K,1]
+      blended = gate * instr_flat + (1.0 - gate) * nn.cast(null_flat)  # [B*K,D]
+      f = jnp.concatenate([f, nn.cast(blended)], -1)
+      return sample(self.pol(f, 1))
+    
+    # policyfn = lambda feat: sample(self.pol(self.feat2tensor(feat), 1))
     _, imgfeat, imgprevact = self.dyn.imagine(starts, policyfn, H, training)
     first = jax.tree.map(
         lambda x: x[:, -K:].reshape((B * K, 1, *x.shape[2:])), repfeat)
@@ -342,11 +417,22 @@ class Agent(embodied.jax.Agent):
     imgact = concat([imgprevact, lastact], 1)
     assert all(x.shape[:2] == (B * K, H + 1) for x in jax.tree.leaves(imgfeat))
     assert all(x.shape[:2] == (B * K, H + 1) for x in jax.tree.leaves(imgact))
-    inp = self.feat2tensor(imgfeat)
+    inp_wm = self.feat2tensor(imgfeat)
+
+    instr_time = jnp.repeat(instr_flat[:, None, :], inp_wm.shape[1], axis=1)  # [B*K, H+1, D]
+    stop_inp_time = jnp.concatenate([inp_wm, nn.cast(instr_time)], -1)       # [B*K,H+1,F+D]
+    p_stop_time = self.stop(stop_inp_time, 2).prob(1)                         # [B*K, H+1]
+    # same null, tiled across time
+    null_time = jnp.repeat(self.null(instr_flat)[:, None, :], inp_wm.shape[1], axis=1)  # [B*K,H+1,D]
+    gate_time = (1.0 - sg(p_stop_time))[..., None]
+    blended_time = gate_time * instr_time + (1.0 - gate_time) * nn.cast(null_time)
+    inp = jnp.concatenate([inp_wm, nn.cast(blended_time)], -1)                # [B*K,H+1,F+D]
+
+
     los, imgloss_out, mets = imag_loss(
         imgact,
-        self.rew(inp, 2).pred(),
-        self.con(inp, 2).prob(1),
+        self.rew(inp_wm, 2).pred(),
+        self.con(inp_wm, 2).prob(1),
         self.pol(inp, 2),
         self.val(inp, 2),
         self.slowval(inp, 2),
@@ -355,8 +441,18 @@ class Agent(embodied.jax.Agent):
         contdisc=self.config.contdisc,
         horizon=self.config.horizon,
         **self.config.imag_loss)
-    losses.update({k: v.mean(1).reshape((B, K)) for k, v in los.items()})
-    metrics.update(mets)
+    
+    # losses.update({k: v.mean(1).reshape((B, K)) for k, v in los.items()})
+    demo_mask = demo_ids != 0
+    if demo_mask.ndim == 3:
+      demo_mask = demo_mask.any(axis=-1)
+
+    win_mask = demo_mask[:, -K:]                   # [B, K]
+    rl_step_weight = (~win_mask).astype(instr.dtype)       # 1.0 where unlabeled, else 0.0
+    # keep RL active; downweight if a start window is mostly supervised
+    rl_losses = {k: v.mean(1).reshape((B, K)) * rl_step_weight for k, v in los.items()}
+    losses.update(rl_losses)
+
 
     # Replay
     if self.config.repval_loss:
@@ -365,11 +461,17 @@ class Agent(embodied.jax.Agent):
       boot = imgloss_out['ret'][:, 0].reshape(B, K)
       feat, last, term, rew, boot = jax.tree.map(
           lambda x: x[:, -K:], (feat, last, term, rew, boot))
-      inp = self.feat2tensor(feat)
+      # inp_wm = self.feat2tensor(feat)
+
+      p_stop_train = stop_pred.prob(1)[:, -K:]
+      gate = (1.0 - sg(p_stop_train))[..., None]
+      nullK = self.null(instrK)
+      blended_instr = gate * instrK + (1.0 - gate) * nn.cast(nullK)
+      inp_aug = jnp.concatenate([self.feat2tensor(feat), nn.cast(blended_instr)], -1)
       los, reploss_out, mets = repl_loss(
           last, term, rew, boot,
-          self.val(inp, 2),
-          self.slowval(inp, 2),
+          self.val(inp_aug, 2),
+          self.slowval(inp_aug, 2),
           self.valnorm,
           update=training,
           horizon=self.config.horizon,

@@ -33,13 +33,16 @@ def main(argv=None):
   global vlm
   global embedder
   if config.agent.use_vlm:
+    from .encoder import load_flax_text_encoder
+    lang_model, lang_params = load_flax_text_encoder('nreimers/MiniLM-L6-H384-uncased')  # or your Flax choice
+
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     from .sentence_embedding import SentenceEmbedder
-    embedder = 1
-    # embedder = SentenceEmbedder(device=config.agent.vlm_device)
+    # embedder = 1
+    embedder = SentenceEmbedder(device=config.agent.vlm_device)
     from .vlm_utils import VLMWrapper
-    vlm = 1
-    # vlm = VLMWrapper(device=config.agent.vlm_device, action_map_path=config.agent.action_map_path)
+    # vlm = 1
+    vlm = VLMWrapper(device=config.agent.vlm_device, action_map_path=config.agent.action_map_path)
   else:
     embedder = None
     vlm = None
@@ -81,7 +84,7 @@ def main(argv=None):
 
   if config.script == 'train':
     embodied.run.train(
-        bind(make_agent, config),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_env, config),
         bind(make_stream, config),
@@ -92,7 +95,7 @@ def main(argv=None):
 
   elif config.script == 'train_eval':
     embodied.run.train_eval(
-        bind(make_agent, config),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_replay, config, 'eval_replay', vlm, embedder, 'eval'),
         bind(make_env, config),
@@ -105,7 +108,7 @@ def main(argv=None):
 
   elif config.script == 'eval_only':
     embodied.run.eval_only(
-        bind(make_agent, config),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
         bind(make_env, config),
         bind(make_logger, config),
         vlm, 
@@ -114,7 +117,7 @@ def main(argv=None):
 
   elif config.script == 'parallel':
     embodied.run.parallel.combined(
-        bind(make_agent, config),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_replay, config, 'replay_eval', vlm, embedder, 'eval'),
         bind(make_env, config),
@@ -146,7 +149,7 @@ def main(argv=None):
     raise NotImplementedError(config.script)
 
 
-def make_agent(config):
+def make_agent(config, text_encoder):
   from .agent import Agent
   env = make_env(config, 0)
   notlog = lambda k: not k.startswith('log/')
@@ -157,12 +160,7 @@ def make_agent(config):
     return embodied.RandomAgent(obs_space, act_space)
   cpdir = elements.Path(config.logdir)
   cpdir = cpdir.parent if config.replicas > 1 else cpdir
-
-  if config.agent.use_vlm:
-    from transformers import FlaxT5EncoderModel
-    text_encoder = FlaxT5EncoderModel.from_pretrained("google/flan-t5-small", dtype=config.jax.compute_dtype)
-  else:
-    text_encoder = None
+  
   return Agent(obs_space, act_space, elements.Config(
       **config.agent,
       logdir=config.logdir,
@@ -243,6 +241,7 @@ def make_env(config, index, **overrides):
     from embodied.envs import from_gym
     import memory_maze  # noqa
   ctor = {
+      'mindcraft': 'embodied.envs.mindcraft:MindCraft',
       'meltingpot': 'embodied.envs.meltingpot:MeltingPot',
       'virtualhome': 'embodied.envs.virtualhome:VirtualHome',
       'social': 'embodied.envs.social:SocialDilemma',
@@ -275,8 +274,8 @@ def make_env(config, index, **overrides):
   if kwargs.pop('use_logdir', False):
     kwargs['logdir'] = elements.Path(config.logdir) / f'env{index}'
 
-  kwargs['vlm'] = vlm
-  kwargs['embedder'] = embedder
+  kwargs['vlm'] = 1
+  kwargs['embedder'] = 1
 
   env = ctor(task, **kwargs)
   return wrap_env(env, config)

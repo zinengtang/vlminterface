@@ -48,7 +48,6 @@ class Crafter(embodied.Env):
         'log/reward': elements.Space(np.float32),
     }
     if self.vlm is not None:
-      # spaces['instructions'] = elements.Space(np.float32, 384)
       spaces['instructions_ids'] = elements.Space(np.uint8, 32)
       spaces['action_ids'] = elements.Space(np.int32)
     if self._logs:
@@ -86,27 +85,6 @@ class Crafter(embodied.Env):
       self, image, reward, info,
       is_first=False, is_last=False, is_terminal=False):
     
-    
-    # self._last_instr_ids = np.ones(32, dtype=np.uint8)
-    # if self.vlm is not None and random.random() > self.dropout_rate:
-    #   if self._step % self.min_instr_interval == 0 and False:
-    #     proactive = self.sample_with_vlm(
-    #       [pil_frame], 
-    #       self.action_cache, 
-    #       check_proactive=True
-    #     )
-    #   else:
-    #     proactive = False
-    #   if is_first or (self._step % self.instr_interval == 0) or proactive:
-    #     pil_frame = Image.fromarray(image)
-    #     self._last_instr_embed, self._last_instr_ids = self.sample_with_vlm([pil_frame], self.action_cache)
-        
-    #     self.action_cache = []
-
-    # instr_dict = dict(
-    #   intr_ids=self._last_instr_ids
-    # )
-
     obs = dict(
         image=image,
         reward=np.float32(reward),
@@ -115,9 +93,9 @@ class Crafter(embodied.Env):
         is_terminal=is_terminal,
         **{'log/reward': np.float32(info['reward'] if info else 0.0)},
     )
-    # if self.vlm is not None:
-    #   # obs['instructions'] = self._last_instr_embed
-    #   obs['instructions_ids'] = self._last_instr_ids
+    if self.vlm is not None:
+      obs['instructions_ids'] = np.zeros(32, dtype=np.uint8)
+      obs['action_ids'] = np.array(-100).astype(np.int32)
 
     if self._logs:
       log_achievements = {

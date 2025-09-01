@@ -56,13 +56,25 @@ class Replay:
     self.vlm = vlm
     self.embedder = embedder
     self.instr_interval = 30
-    self.max_instr_interval = 30
+    self.max_instr_interval = 16
     self.last_step = 0
     self.action_cache = []
-    # self.dropout_rate = 0.95
-    self.dropout_rate = 1.0
+    self.dropout_rate = 0.99
+    # self.dropout_rate = 1.0
 
     self.metrics = {'samples': 0, 'inserts': 0, 'updates': 0}
+
+    from transformers import AutoTokenizer
+    self.tokenizer = AutoTokenizer.from_pretrained(
+      "nreimers/MiniLM-L6-H384-uncased",
+      padding="max_length",
+      truncation=True,
+      max_length=32,
+      add_special_tokens=True,
+    ) 
+    if self.tokenizer.pad_token_id is None:
+      if self.tokenizer.eos_token is not None:
+          self.tokenizer.pad_token = self.tokenizer.eos_token
 
   def __len__(self):
     return len(self.items)
@@ -88,7 +100,8 @@ class Replay:
   def sample_with_vlm(self, frames, actions=None, check_proactive=False):
     """
     Given a list of PIL frames and corresponding low-level action strings,
-    returns a JAX array of shape (batch, hidden_dim) as the frozen text embedding.
+    returns a JAX array of shape (
+    batch, hidden_dim) as the frozen text embedding.
     """
     if check_proactive:
       with torch.inference_mode():
@@ -96,14 +109,28 @@ class Replay:
         return proactive_signal
     else:
       with torch.inference_mode():
-        captions = self.vlm(frames, actions)
-        # print(captions)
-        # 3. encode (frozen)
-        embeds, caption_ids = self.embedder.encode(captions, 32)
-        if embeds is not None:
-          embeds = embeds.detach().cpu().float().numpy()
-        caption_ids = caption_ids.detach().cpu().numpy().astype(np.uint8)
-      return embeds, caption_ids
+        if isinstance(actions, dict):
+          captions = []
+          for i, key in enumerate(actions):
+            captions_i = self.vlm(frames, actions[key])
+            if len(captions_i) == 0:
+              return None, None
+            captions.append(captions_i[0])
+        else:
+          captions = self.vlm(frames, actions)
+        if len(captions) == 0:
+          return None, None
+        print('actions:', actions)
+        print('caption:', captions)
+        caption_ids = self.tokenizer(
+          captions, 
+          padding="max_length",
+          truncation=True,
+          max_length=32,
+          add_special_tokens=True
+        ).input_ids
+        caption_ids = np.array(caption_ids).astype(np.uint8)
+      return None, caption_ids
 
   @elements.timer.section('replay_add')
   def add(self, step, act_names, worker=0):
@@ -111,8 +138,6 @@ class Replay:
     with self.rwlock.reading:
       step = {k: np.asarray(v) for k, v in step.items()}
 
-      # for key in step.keys():
-      #   print(key, step[key].shape)
       if worker not in self.current:
         chunk = chunklib.Chunk(self.chunksize)
         with self.refs_lock:
@@ -128,26 +153,59 @@ class Replay:
       assert chunk.length == index, (chunk.length, index)
       chunk.append(step)
 
-      if self.vlm is not None and random.random() > self.dropout_rate and chunk.length > 5:
+      if self.vlm is not None and self.vlm is not 1 and random.random() > self.dropout_rate and chunk.length > 5:
         # print("chunk_len", chunk.size)
         image = step['image']
         pil_frame = Image.fromarray(image)
-        instr_interval = random.randint(5, self.max_instr_interval)
+        instr_interval = random.randint(4, self.max_instr_interval)
         chunk_length = chunk.length
+        # print(chunk_length, instr_interval, chunk.last_step)
         index_to_update = max(chunk_length-instr_interval, 0)
-        action_index_to_update = max(index_to_update-random.randint(0, 3), 0)
+        action_index_to_update = max(index_to_update-random.randint(0, 2), 0)
 
-        if action_index_to_update >= self.last_step:
-          history_actions = [item for item in chunk.data['action'][index_to_update:chunk_length]]
-          history_actions = [act_names[item] for item in history_actions]
-          # print(history_actions)
-          history_actions = ", ".join(history_actions)[:128]
-          instr_embed, instr_ids = self.sample_with_vlm([pil_frame], history_actions)
+        if action_index_to_update >= chunk.last_step:
+          # print(chunk.data['action_text_ids'][index_to_update:chunk_length])
+          if 'action_text_ids' in chunk.data:
+            history_actions_0 = self.tokenizer.batch_decode(chunk.data['action_text_ids'][index_to_update:chunk_length][:, :64], skip_special_tokens=True, clean_up_tokenization_spaces=False,)
+            history_actions_1 = self.tokenizer.batch_decode(chunk.data['action_text_ids'][index_to_update:chunk_length][:, 64:], skip_special_tokens=True, clean_up_tokenization_spaces=False,)
+            history_actions_0 = [item for item in history_actions_0 if item.strip()]
+            history_actions_0 = ", ".join(history_actions_0)
+            history_actions_1 = [item for item in history_actions_1 if item.strip()]
+            history_actions_1 = ", ".join(history_actions_1)
+            rand = random.random()
+            if rand < 0.33:
+              history_actions = {"agent 0": history_actions_0}
+            elif 0.33 < rand < 0.66:
+              history_actions = {"agent 1": history_actions_1}
+            elif rand > 0.66:
+              history_actions = {"agent 0": history_actions_0, "agent 1": history_actions_1}
+          else:
+            history_actions = [item for item in chunk.data['action'][index_to_update:chunk_length]]
+            if chunk.data['action_ids'][index_to_update:chunk_length].ndim == 2:
+              history_actions = [act_names[item[0]] for item in history_actions]
+            else:
+              history_actions = [act_names[item] for item in history_actions]
+            history_actions = [item for item in history_actions if item.strip()]
+            history_actions = ", ".join(history_actions)
+          
+          _, instr_ids = self.sample_with_vlm([pil_frame], history_actions)
 
-          chunk.data['instructions_ids'][action_index_to_update] = np.array(instr_ids[0])
-          chunk.data['action_ids'][index_to_update:chunk_length] = chunk.data['action'][index_to_update:chunk_length].astype(np.int32)
-
-          self.last_step = chunk_length
+          chunk.last_step = chunk_length
+          if instr_ids is not None:
+            # print(chunk.data['instructions_ids'][action_index_to_update:chunk_length].shape)
+            if chunk.data['action_ids'][index_to_update:chunk_length].ndim == 2:
+              if rand < 0.33:
+                chunk.data['instructions_ids'][action_index_to_update:chunk_length][:, 0] = np.array(instr_ids)
+                chunk.data['action_ids'][index_to_update:chunk_length][:, 0] = chunk.data['action'][index_to_update:chunk_length].astype(np.int32)[:, 0]
+              elif 0.33 < rand < 0.66:
+                chunk.data['instructions_ids'][action_index_to_update:chunk_length][:, 1] = np.array(instr_ids)
+                chunk.data['action_ids'][index_to_update:chunk_length][:, 1] = chunk.data['action'][index_to_update:chunk_length].astype(np.int32)[:, 1]
+              elif rand > 0.66:
+                chunk.data['instructions_ids'][action_index_to_update:chunk_length] = np.array(instr_ids)
+                chunk.data['action_ids'][index_to_update:chunk_length] = chunk.data['action'][index_to_update:chunk_length].astype(np.int32)
+            else:
+              chunk.data['instructions_ids'][action_index_to_update:chunk_length] = np.array(instr_ids)
+              chunk.data['action_ids'][index_to_update:chunk_length] = chunk.data['action'][index_to_update:chunk_length].astype(np.int32)
 
       assert chunk.length == index + 1, (chunk.length, index + 1)
       stream.append((chunkid, index))

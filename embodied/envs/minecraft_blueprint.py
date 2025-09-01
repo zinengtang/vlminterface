@@ -21,8 +21,7 @@ from minerl.herobraine.hero.mc import INVERSE_KEYMAP
 from skimage.metrics import structural_similarity as ssim
 
 import torch
-
-import lpips, torch
+import lpips
 from PIL import Image
 import torchvision.transforms as T
 
@@ -278,8 +277,8 @@ def _extract_pose(obs):
         np.float32(obs["location_stats/pitch"]),
     )
 
-lpips_metric = lpips.LPIPS(net='alex').eval().to('cuda:2')   #   1 = completely different
-# to_tensor = T.Compose([T.Resize(256), T.ToTensor()])
+lpips_metric = lpips.LPIPS(net='alex').eval().to('cuda:1')   #   1 = completely different
+to_tensor = T.Compose([T.Resize(256), T.ToTensor()])
 
 def lpips_similarity(img1_pil, img2_pil):
     t1 = (img1_pil/255.0)[None]*2-1   # scale to [-1,1]
@@ -287,7 +286,7 @@ def lpips_similarity(img1_pil, img2_pil):
     t1 = torch.tensor(t1).permute(0, 3, 1, 2).to(torch.float32)
     t2 = torch.tensor(t2).permute(0, 3, 1, 2).to(torch.float32)
     # print(t1.shape, t1.max(), t1.min(), t2.shape, t2.max(), t2.min())
-    d  = lpips_metric(t1.to('cuda:2'), t2.to('cuda:2'))
+    d  = lpips_metric(t1.to('cuda:1'), t2.to('cuda:1'))
     # torch.save(t1.detach().cpu(), '/root/logdir/cam.pt')
     # torch.save(t2.detach().cpu(), '/root/logdir/blueprint.pt')
     return 1.0 - d.item()            # convert to “higher = more similar”
@@ -336,6 +335,112 @@ class MovementReward:
         return self.reward_move if dist >= self.min_dist else self.penalty_stuck
 from collections import deque   # (if not already imported above)
 
+import torch.nn.functional as F
+
+import collections
+
+class PlacementWindowReward:
+    """
+    Reward/penalty for recent building activity.
+
+    every : int        # window (steps)
+    reward_any : float # bonus if >=1 placement in the window
+    penalty_none : float # penalty if 0 placements in the window
+    """
+    def __init__(self, every=8, reward_any=0.05, penalty_none=-0.05):
+        self.every = every
+        self.reward_any = reward_any
+        self.penalty_none = penalty_none
+        self._hist = collections.deque(maxlen=every)
+
+    def reset(self):
+        self._hist.clear()
+
+    def __call__(self, placed_this_step: bool) -> float:
+        self._hist.append(bool(placed_this_step))
+        # Only evaluate once the window is full (like MovementReward)
+        if len(self._hist) < self.every:
+            return 0.0
+        return self.reward_any if any(self._hist) else self.penalty_none
+
+import numpy as np
+from scipy.ndimage import maximum_filter
+from skimage import color  # pip install scikit-image
+
+def _deltaE00(a_lab, b_lab):
+    """Vectorised ΔE_00; equation from CIEDE2000 paper."""
+    L1, a1, b1 = a_lab[..., 0], a_lab[..., 1], a_lab[..., 2]
+    L2, a2, b2 = b_lab[..., 0], b_lab[..., 1], b_lab[..., 2]
+
+    # ——— mid-computations ———
+    C1 = np.sqrt(a1**2 + b1**2)
+    C2 = np.sqrt(a2**2 + b2**2)
+    C_bar = 0.5 * (C1 + C2)
+
+    G = 0.5 * (1 - np.sqrt((C_bar**7) / (C_bar**7 + 25**7)))
+    a1p = (1 + G) * a1
+    a2p = (1 + G) * a2
+    C1p = np.sqrt(a1p**2 + b1**2)
+    C2p = np.sqrt(a2p**2 + b2**2)
+    h1p = np.degrees(np.arctan2(b1, a1p)) % 360
+    h2p = np.degrees(np.arctan2(b2, a2p)) % 360
+
+    dLp = L2 - L1
+    dCp = C2p - C1p
+
+    dhp = h2p - h1p
+    dhp = dhp - 360 * (dhp > 180) + 360 * (dhp < -180)
+    dHp = 2 * np.sqrt(C1p * C2p) * np.sin(np.radians(dhp) / 2)
+
+    L_bar = 0.5 * (L1 + L2)
+    C_bar_p = 0.5 * (C1p + C2p)
+
+    h_bar = h1p + dhp / 2
+    h_bar += 180 * ((np.abs(h1p - h2p) > 180) & (h2p <= h1p))
+    h_bar %= 360
+
+    T = 1 - 0.17 * np.cos(np.radians(h_bar - 30)) + \
+        0.24 * np.cos(np.radians(2 * h_bar)) + \
+        0.32 * np.cos(np.radians(3 * h_bar + 6)) - \
+        0.20 * np.cos(np.radians(4 * h_bar - 63))
+
+    SL = 1 + 0.015 * (L_bar - 50) ** 2 / np.sqrt(20 + (L_bar - 50) ** 2)
+    SC = 1 + 0.045 * C_bar_p
+    SH = 1 + 0.015 * C_bar_p * T
+
+    RT = -2 * np.sqrt(C_bar_p ** 7 / (C_bar_p ** 7 + 25 ** 7)) * \
+         np.sin(np.radians(60 * np.exp(-((h_bar - 275) / 25) ** 2)))
+
+    dE = np.sqrt((dLp / SL) ** 2 + (dCp / SC) ** 2 +
+                 (dHp / SH) ** 2 + RT * (dCp / SC) * (dHp / SH))
+    return dE
+
+def de00_chamfer_similarity(frame_rgb: np.ndarray,
+                            blueprint_rgb: np.ndarray,
+                            tau: float = 2.3,
+                            radius: int = 4) -> float:
+    """
+    Formal colour-difference similarity based on ΔE_00.
+    • tau   – JND threshold (≈2.3 ≈ 1 JND)
+    • radius – search radius in pixels for spatial tolerance
+    """
+    assert frame_rgb.shape == blueprint_rgb.shape and frame_rgb.dtype == np.uint8
+
+    # 1. RGB→Lab
+    lab_f = color.rgb2lab(frame_rgb)
+    lab_b = color.rgb2lab(blueprint_rgb)
+
+    # 2. per-pixel ΔE_00
+    de = _deltaE00(lab_f, lab_b)   # same H×W
+
+    # 3. “good” mask then dilate
+    good = (de <= tau).astype(np.uint8)
+    if radius > 0:
+        good = maximum_filter(good, size=(2*radius+1, 2*radius+1))
+
+    # 4. fraction of blueprint pixels that found a match
+    return good.mean(dtype=np.float32)
+
 # 3. Modified environment wrapper
 class Blueprints(embodied.Wrapper):
     def __init__(self, *args, **kwargs):
@@ -368,10 +473,12 @@ class Blueprints(embodied.Wrapper):
         env = embodied.wrappers.TimeLimit(env, length)
         super().__init__(env)
 
+        self.image_size = env._size
+
         if True:
           from transformers import CLIPProcessor, CLIPModel
           import torch
-          self.device = 'cuda:2'
+          self.device = 'cuda:1'
           # 1. Load CLIP model and processor
           clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self.device).eval().to(torch.bfloat16)
           clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
@@ -380,11 +487,12 @@ class Blueprints(embodied.Wrapper):
           self.clip_model = clip_model
           self.clip_processor = clip_processor
 
-        self.max_reward = -1
+        # self.max_reward = -1
         # self.rewards = [
         #     HealthReward(),
         # ]
-        self.move_reward = MovementReward(every=8, min_dist=0.5, reward_move=0.05, penalty_stuck=0.0)
+        self.move_reward = MovementReward(every=10, min_dist=0.5, reward_move=0.05, penalty_stuck=0.0)
+        self.place_reward = PlacementWindowReward(every=4, reward_any=5, penalty_none=0.00)
 
         self.reward_every = kwargs.pop('reward_every', 5)
         self.spawn_pos   = None   # filled in on reset
@@ -404,6 +512,24 @@ class Blueprints(embodied.Wrapper):
         self._pos_hist = deque(maxlen=self._stuck_window)
         self._stuck_windows = 0
 
+        self.alpha = kwargs.pop('clip_alpha', 0.2)  # weight for global vs patch
+
+        self._need_reset = False
+        # In __init__
+        self.best_sim = -1.0
+        self.prev_sim = None
+        self.best_lpips = -1.0
+        self.prev_lpips = None
+        self.best_color = -1.0
+        self.prev_color = None
+        self.imp_scale = 10.0      # improvement bonus weight
+        self.dense_scale = 1.0     # small dense shaping weight
+
+        # When you handle reset (both external and forced)
+        self.move_reward.reset()
+        self.place_reward.reset()
+
+
     def _reset_stuck_tracking(self):
         self._pos_hist.clear()
         self._stuck_windows = 0
@@ -422,21 +548,16 @@ class Blueprints(embodied.Wrapper):
     
     def load_blueprint(self,):
       if random.random() < 0.5:
-        self.blueprint_image = Image.open(random.choice(self.all_blueprints)).convert("RGB").resize((64,64))
+        self.blueprint_image_pil = Image.open(random.choice(self.all_blueprints)).convert("RGB").resize(self.image_size)
       else:
-        self.blueprint_image = Image.open(random.choice(self.all_blueprints_real)).convert("RGB").resize((64,64))
-      self.blueprint_image = np.array(self.blueprint_image)
+        self.blueprint_image_pil = Image.open(random.choice(self.all_blueprints_real)).convert("RGB").resize(self.image_size)
+      self.blueprint_image = np.array(self.blueprint_image_pil)
 
       if self.clip_model is not None:
-        self.blueprint_image = Image.open("blueprints/real/well.png").convert("RGB").resize((64,64))
-        self.blueprint_image = np.array(self.blueprint_image)
-        inputs = self.clip_processor(images=self.blueprint_image, return_tensors="pt").to(self.device)
-        inputs['pixel_values'] = inputs['pixel_values'].to(torch.bfloat16)
+        # Precompute CLIP features on device
         with torch.no_grad():
-            blueprint_emb = self.clip_model.get_image_features(**inputs)
-            blueprint_emb = (blueprint_emb / blueprint_emb.norm(p=2, dim=-1, keepdim=True)).detach().cpu()
-
-      self.blueprint_emb = blueprint_emb  # precomputed (1, dim)
+            self.blueprint_global  = self._clip_encode_global(self.blueprint_image_pil)  # [1, D] float32 on device
+            self.blueprint_patches = self._clip_patch_tokens(self.blueprint_image_pil)
 
     def _capture_from_vantage(self, location_stats_all):
       first_init = False
@@ -444,68 +565,110 @@ class Blueprints(embodied.Wrapper):
       if self.spawn_pos is None:
         first_init = True
         self.spawn_pos = location_stats_all
-        # fwd_idx = self.env.act_names.index('forward')
-        # for _ in range(8):
-        #     self.env.step({'action': np.array(fwd_idx), 'reset': np.array(False)})
-        # self.env._gymenv.set_next_chat_message("/gamemode @a creative")
-
       sx, sy, sz, syaw, spitch = self.spawn_pos
       if self._anchor_yaw is None:
         self._anchor_yaw   = syaw
         self._anchor_pitch = spitch
 
-      # print(self.env._action_values)
-      flight_height = 0
-      # random.randint(0, 2)
+      flight_height = 3
       self.env._gymenv.set_next_chat_message(f"/setblock {sx} {sy+flight_height} {sz} barrier")
-      # self.env._env._env.set_next_chat_message("/effect give @a levitation 1000000 1 true")
       for _ in range(4):
         _ = self.env.step({'action': np.array(0, dtype=np.int32), 'reset': np.array(False)})
-      self.env._gymenv.set_next_chat_message(f"/tp @a {sx} {sy+flight_height+2} {sz} {syaw} {spitch}")
+      self.env._gymenv.set_next_chat_message(f"/tp @a {sx} {sy+flight_height+2} {sz} {syaw} {spitch-5}")
       for _ in range(4):
         obs = self.env.step({'action': np.array(0, dtype=np.int32), 'reset': np.array(False)})
-      # self.env._env._env.set_next_chat_message("/effect clear @a levitation")
       init_pov = obs['image']
-      # for _ in range(4):
-      #   obs = self.env.step({'action': np.array(0, dtype=np.int32), 'reset': np.array(False)})
-      # print(3, obs['player_pos'])
-      
-      # print(init_pov.shape)
-      # ⬇︎ inside _capture_from_vantage (or wherever you already have init_pov)
-      # frame_rgb = init_pov                      #  already a H×W×3 numpy array
-      # self._frames.append(Image.fromarray(frame_rgb))
-
-      # Image.fromarray(init_pov).save('/root/logdir/test_start.jpg')
       sx, sy, sz, syaw, spitch = location_stats_all
       self.env._env._env.set_next_chat_message(f"/tp @a {sx} {sy} {sz} {syaw} {spitch}")
-      # print(11, location_stats_all)
       for _ in range(4):
         _ = self.env.step({'action': np.array(0, dtype=np.int32), 'reset': np.array(False)})
-      # init_pov = obs['image']
-      # print(33, obs['player_pos'])
-      # print(init_pov.shape)
-      # Image.fromarray(init_pov).save('/root/logdir/test_ori.jpg')
-      # raise
-      # self.env._gymenv.set_next_chat_message(f"/tp @a {sx} {sy} {sz} {syaw} {spitch}")
       if first_init:
         self.spawn_pos = location_stats_all
         fwd_idx = self.env.act_names.index('forward') 
-        for _ in range(random.randint(10,18)):
+        for _ in range(random.randint(18,24)):
             self.env.step({'action': np.array(fwd_idx), 'reset': np.array(False)})
       return init_pov
 
+    @torch.no_grad()
+    def _clip_encode_global(self, img_pil: Image.Image) -> torch.Tensor:
+        """
+        Returns L2-normalized global CLIP image embedding [1, D] (float32, on self.device).
+        """
+        clip_inputs = self.clip_processor(images=img_pil, return_tensors="pt").to(self.device)
+        # keep compute stable in f32 for similarity math; convert just before model if you prefer bf16
+        pixel_values = clip_inputs["pixel_values"]
+        # If you really want bf16: pixel_values = pixel_values.to(torch.bfloat16)
+        feats = self.clip_model.get_image_features(pixel_values=pixel_values)
+        feats = feats / feats.norm(p=2, dim=-1, keepdim=True)
+        return feats.float()  # [1, D]
+
+    @torch.no_grad()
+    def _clip_patch_tokens(self, img_pil: Image.Image) -> torch.Tensor:
+        """
+        Returns L2-normalized patch tokens (orderless) with CLS removed: [P, D]
+        Uses HF CLIP vision tower to grab last hidden states.
+        """
+        clip_inputs = self.clip_processor(images=img_pil, return_tensors="pt").to(self.device)
+        pixel_values = clip_inputs["pixel_values"]
+        # Forward the vision tower to get token sequence
+        vision_out = self.clip_model.vision_model(pixel_values=pixel_values, output_hidden_states=False)
+        tokens = vision_out.last_hidden_state  # [B, 1+P, D_model]
+        # Apply post layernorm if present (stabilizes scales)
+        post_ln = getattr(self.clip_model.vision_model, "post_layernorm", None)
+        if post_ln is not None:
+            tokens = post_ln(tokens)
+        # Drop CLS
+        tokens = tokens[:, 1:, :]            # [B, P, D]
+        tokens = tokens.reshape(-1, tokens.shape[-1])  # [P, D]
+        tokens = F.normalize(tokens, dim=-1)
+        return tokens.float()
+
+    @torch.no_grad()
+    def _chamfer_similarity(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+        """
+        Cosine-based symmetric Chamfer similarity on L2-normalized token sets.
+        A: [M, D], B: [N, D] on same device. Returns scalar tensor.
+        """
+        # cosine distance = 1 - cosine sim
+        d = 1.0 - (A @ B.T)         # [M, N]
+        a2b = d.min(dim=1).values.mean()
+        b2a = d.min(dim=0).values.mean()
+        chamfer = 0.5 * (a2b + b2a)
+        return 1.0 - chamfer        # higher is better
+
+    @torch.no_grad()
+    def _combined_clip_similarity(self, frame_rgb: np.ndarray) -> tuple[float, float, float]:
+        """
+        Compute (global_sim, patch_sim, combined_sim) between current frame and blueprint.
+        Returns floats.
+        """
+        img = Image.fromarray(frame_rgb).convert("RGB").resize((224, 224))
+        # global
+        g_frame = self._clip_encode_global(img)            # [1, D]
+        g_bp    = self.blueprint_global                    # [1, D]
+        g_sim = F.cosine_similarity(g_frame, g_bp, dim=-1).item()
+
+        # patch
+        p_frame = self._clip_patch_tokens(img)             # [Pf, D]
+        p_bp    = self.blueprint_patches                   # [Pb, D]
+        p_sim = self._chamfer_similarity(p_frame, p_bp).item()
+
+        # blend
+        combined = self.alpha * g_sim + (1.0 - self.alpha) * p_sim
+        return g_sim, p_sim, combined
+
+
     def _compute_clip_reward(self, frame_rgb):
-      from PIL import Image
-      img = Image.fromarray(frame_rgb).convert("RGB")
-      clip_inputs = self.clip_processor(images=img, return_tensors="pt").to(self.device)
-      clip_inputs['pixel_values'] = clip_inputs['pixel_values'].to(torch.bfloat16)
-      with torch.no_grad():
-          emb = self.clip_model.get_image_features(**clip_inputs)
-          emb = emb / emb.norm(p=2, dim=-1, keepdim=True)
-      # cosine-sim between blueprint (1×d) and frame (1×d) → scalar
-      sim = torch.cosine_similarity(emb.cpu(), self.blueprint_emb, dim=-1).item()
-      return sim
-    
+        """
+        Kept the old method name for minimal changes elsewhere.
+        Now returns the *combined* score; also stores per-component sims for logging.
+        """
+        g, p, c = self._combined_clip_similarity(frame_rgb)
+        # Optional: keep for debugging/telemetry
+        self._last_clip_global = g
+        self._last_clip_patch  = p
+        return c
+
     def _dump_gif(self):
       """Write out and clear the frame buffer."""
       if not self._frames:
@@ -524,73 +687,119 @@ class Blueprints(embodied.Wrapper):
       self._frames.clear()
       self._gif_index += 1
     
+    def _hard_reset(self):
+        # One place to do all resets + reinitialization.
+        forced = {'action': np.array(0, np.int32), 'reset': np.array(True)}
+        obs = self.env.step(forced)
+
+        # Reinit your own state
+        self.spawn_pos = None
+        self.move_reward.reset()
+        self.place_reward.reset()
+        self.load_blueprint()
+        self._reset_stuck_tracking()
+        self.prev_sim = None
+        self.best_sim = -1.0
+        self.prev_lpips = None
+        self.best_lpips = -1.0
+        self.best_color = -1.0
+        self.prev_color = None
+        return obs
+    
     def step(self, action):
       # print('action', action)
       step_idx = self.env._step
+
+      placed_now = False
+      if 'action' in action:
+          try:
+              idx = int(action['action'])
+              act_name = self.env.act_names[idx]   # names were built from ACTIONS
+              placed_now = act_name.startswith('place_')
+          except Exception:
+              placed_now = False
+
       if action['reset']:
-        self.spawn_pos = None
-        self.move_reward.reset()
-        self.load_blueprint()
-        self._reset_stuck_tracking()   # <<< reset tracking on external reset
-        self.env._gymenv.set_next_chat_message(f"/viewdistance 32")
-        self.env._gymenv.set_next_chat_message(f"/simulationdistance 32")
-      obs = self.env.step(action)
+          self.spawn_pos = None
+          self.move_reward.reset()
+          self.place_reward.reset()
+          self.load_blueprint()
+          self._reset_stuck_tracking()   # <<< reset tracking on external reset
+          self.env._gymenv.set_next_chat_message(f"/viewdistance 32")
+          self.env._gymenv.set_next_chat_message(f"/simulationdistance 32")
+          self.prev_sim = None
+          self.best_sim = -1.0
+          self.prev_lpips = None
+          self.best_lpips = -1.0
+          self.prev_color = None
+          self.best_color = -1.0
+          
+      if self._need_reset:
+          self._need_reset = False
+          obs = self._hard_reset()
+      else:
+          obs = self.env.step(action)
 
       if not obs["is_first"]:
           pos = obs['player_pos']
           if self._update_and_check_stuck(pos):
               # Force reset
-              forced = {'action': np.array(0, dtype=np.int32), 'reset': np.array(True)}
-              obs = self.env.step(forced)
-              # Mirror your manual reset initialization
-              self.spawn_pos = None
-              self.move_reward.reset()
-              self.load_blueprint()
-              self._reset_stuck_tracking()
-              # obs['stuck_reset'] = True  # tag for logging
-              # (Optionally add penalty)
-              obs['reward'] = np.float32(-1)
+              obs['is_last'] = True
+              obs['reward'] = np.float32(obs['reward'] - 5)
+              # self._need_reset = True
       else:
           # First frame of an episode: clear tracking and seed with current position
           self._reset_stuck_tracking()
           self._pos_hist.append(np.asarray(obs['player_pos'], dtype=np.float32))
-          # obs['stuck_reset'] = False
 
       if obs["is_first"]:
         for _ in range(30):
           self.env.step({'action': np.array(0, dtype=np.int32), 'reset': np.array(False)})
-      # print(dir(self.env._env))
-      # print(dir(self.env._gymenv))
-      # print(self.env._gymenv.inventory)
 
-      if (step_idx % self.reward_every) == 0 or self.max_reward is None:
+      # print(step_idx)
+      if (step_idx % self.reward_every) == 0:
         self.last_frame = self._capture_from_vantage(obs['location_stats_all'])
-        self.last_frame = np.reshape(self.last_frame, [64, 64, 3])
-      # frame = obs['image']s
+        self.last_frame = np.reshape(self.last_frame, [self.image_size[0], self.image_size[1], 3])
       del obs['location_stats_all']
       sim = self._compute_clip_reward(self.last_frame)
-      # lpips_score = lpips_similarity(self.last_frame, self.blueprint_image)
-      # lpips_score = 1-lpips_score
-      # raise
-      if obs["is_first"]:
-        self.max_reward = sim
-        # self.max_lpips = lpips_score
-      delta1 = max(0.0000, (sim - self.max_reward)*10) # improvement bonus
-      # delta2 = lpips_score - self.max_lpips
-      # if delta2 >= 0:
-      #   delta2 *= 100
-      # self.max_reward = max(self.max_reward, sim)
-      # self.max_lpips = max(self.max_lpips, lpips_score)
-      # move_r = self.move_reward(obs)
-      # print(obs['image'].size, self.last_frame.size)
+      lpips_score = lpips_similarity(self.last_frame, self.blueprint_image)
+      color_sim = de00_chamfer_similarity(self.last_frame, self.blueprint_image, tau=2.3, radius=4)
+      if self.prev_sim is None:          # first tick of an episode
+          self.prev_sim = sim
+          self.best_sim = sim
+          self.prev_lpips = lpips_score
+          self.best_lpips = lpips_score
+          self.prev_color = color_sim
+          self.best_color = color_sim
+      dense = (sim - self.prev_sim) * self.dense_scale          # can be +/- small
+      imp = max(0.0, sim - self.best_sim) * self.imp_scale    # only when you set a new record
+      self.prev_sim = sim
+      self.best_sim = max(self.best_sim, sim)
 
-      obs['image'] = np.reshape(obs['image'], [64, 64, 3])
+      dense_lpips = (lpips_score - self.prev_sim) * self.dense_scale          # can be +/- small
+      imp_lpips   = max(0.0, lpips_score - self.best_sim) * self.imp_scale    # only when you set a new record
+      self.prev_lpips = lpips_score
+      self.best_lpips = max(self.best_lpips, lpips_score)
+
+      dense_color = (color_sim - self.prev_color) * self.dense_scale          # can be +/- small
+      imp_color   = max(0.0, color_sim - self.best_color) * self.imp_scale    # only when you set a new record
+      if dense_color < 0.0:
+         dense_color *= 0.0
+      if imp_color < 0.0:
+         imp_color *= 0.0
+      self.prev_color = color_sim
+      self.best_color = max(self.best_color, color_sim)
+
+      place_bonus = self.place_reward(placed_now)
+
+      
+      
+      obs['reward'] += np.float32(np.int32(dense_color*1e4 + imp_color*1e4 + place_bonus))
+                                  #  + dense * 100 + imp * 100 + dense_lpips + imp_lpips + place_bonus)
+      print(dense_color*1e5, imp_color*1e5, dense* 50, imp* 50, dense_lpips, imp_lpips, place_bonus)
+      obs['image'] = np.reshape(obs['image'], [self.image_size[0], self.image_size[1], 3])
       obs['image'] = np.concatenate([obs['image'], self.last_frame])
       obs['image'] = np.concatenate([obs['image'], self.blueprint_image])
-      # obs['image'] = obs['image'].flatten()
-      # print(obs['image'].size)
-      obs['reward'] = delta1
-      # + move_r
       return obs
 
 
@@ -634,7 +843,7 @@ class Diamond(embodied.Wrapper):
     super().__init__(env)
 
   def step(self, action):
-    obs, _ = self.env.step(action)
+    obs = self.env.step(action)
     reward = sum([fn(obs, self.env.inventory) for fn in self.rewards])
     obs['reward'] = np.float32(reward)
     return obs
@@ -803,19 +1012,19 @@ class MinecraftBase(embodied.Env):
   @property
   def obs_space(self):
     space = {
-        # 'image': elements.Space(np.uint8, self._size + (3,)),
-        'image': elements.Space(np.uint8, (128+64, 64) + (3,)),
-        # 'inventory': elements.Space(np.float32, len(self._inv_keys), 0),
-        # 'inventory_max': elements.Space(np.float32, len(self._inv_keys), 0),
-        # 'equipped': elements.Space(np.float32, len(self._equip_enum), 0, 1),
+        'image': elements.Space(np.uint8, self._size + (3,)),
+        # 'image': elements.Space(np.uint8, (self._size[0]*3, self._size[0]) + (3,)),
+        'inventory': elements.Space(np.float32, len(self._inv_keys), 0),
+        'inventory_max': elements.Space(np.float32, len(self._inv_keys), 0),
+        'equipped': elements.Space(np.float32, len(self._equip_enum), 0, 1),
         'reward': elements.Space(np.float32),
-        # 'health': elements.Space(np.float32),
-        # 'hunger': elements.Space(np.float32),
-        # 'breath': elements.Space(np.float32),
+        'health': elements.Space(np.float32),
+        'hunger': elements.Space(np.float32),
+        'breath': elements.Space(np.float32),
         'is_first': elements.Space(bool),
         'is_last': elements.Space(bool),
         'is_terminal': elements.Space(bool),
-        # **{f'log/{k}': elements.Space(np.int64) for k in self._inv_log_keys},
+        **{f'log/{k}': elements.Space(np.int64) for k in self._inv_log_keys},
         'player_pos': elements.Space(np.float32, 3),
     }
     if self.vlm is not None:
@@ -832,10 +1041,6 @@ class MinecraftBase(embodied.Env):
     }
 
   def step(self, action):
-    # action = action.copy()
-    # self.action_cache.append(action)
-    # if len(self.action_cache) > self.max_actions:
-    #   self.action_cache = self.action_cache[-self.max_action:]
 
     index = action.pop('action')
     action.update(self._action_values[index])
@@ -899,27 +1104,30 @@ class MinecraftBase(embodied.Env):
         'image': obs['pov'],
         # 'image': 
         # elements.Space(np.uint8, (128, 64) + (3,)),
-        # 'inventory': inventory,
-        # 'inventory_max': self._max_inventory.copy(),
-        # 'equipped': equipped,
-        # 'health': np.float32(obs['life_stats/life'] / 20),
-        # 'hunger': np.float32(obs['life_stats/food'] / 20),
-        # 'breath': np.float32(obs['life_stats/air'] / 300),
+        'inventory': inventory,
+        'inventory_max': self._max_inventory.copy(),
+        'equipped': equipped,
+        'health': np.float32(obs['life_stats/life'] / 20),
+        'hunger': np.float32(obs['life_stats/food'] / 20),
+        'breath': np.float32(obs['life_stats/air'] / 300),
         'reward': np.float32(0.0),
         'is_first': obs['is_first'],
         'is_last': obs['is_last'],
         'is_terminal': obs['is_terminal'],
-        # **{f'log/{k}': np.int64(obs[k]) for k in self._inv_log_keys},
+        **{f'log/{k}': np.int64(obs[k]) for k in self._inv_log_keys},
         'player_pos': np.array([player_x, player_y, player_z], np.float32),
-        'location_stats_all': [
-          np.float32(obs["location_stats/xpos"]),
-          np.float32(obs["location_stats/ypos"]),
-          np.float32(obs["location_stats/zpos"]),
-          np.float32(obs["location_stats/yaw"]),
-          np.float32(obs["location_stats/pitch"]),
-        ]
+        # 'location_stats_all': [
+        #   np.float32(obs["location_stats/xpos"]),
+        #   np.float32(obs["location_stats/ypos"]),
+        #   np.float32(obs["location_stats/zpos"]),
+        #   np.float32(obs["location_stats/yaw"]),
+        #   np.float32(obs["location_stats/pitch"]),
+        # ]
     }
-    
+    if self.vlm is not None:
+      # spaces['instructions'] = elements.Space(np.float32, 384)
+      obs['instructions_ids'] = np.zeros(32)
+      obs['action_ids'] = np.array(-100)
     # for key, value in obs.items():
     #   if key == "location_stats_all":
     #     continue

@@ -105,38 +105,7 @@ class Driver:
     else:
       obs = [env.step(act) for env, act in zip(self.envs, acts)]
 
-    
-    # if self.vlm is not None:
-    #   # if self._step % self.min_instr_interval == 0 and False:
-    #   #   proactive = self.sample_with_vlm(
-    #   #     [pil_frame], 
-    #   #     self.action_cache, 
-    #   #     check_proactive=True
-    #   #   )
-    #   # else:
-    #   #   proactive = False
-    #   if(step >= self.instr_interval+self.last_step) or step == 0:
-        
-    #     image = obs[0]['image']
-    #     pil_frame = Image.fromarray(image)
-    #     history_actions = self.action_cache[-self.instr_interval:]
-    #     history_actions = [self.act_names[item] for item in history_actions]
-    #     print(step)
-    #     print(history_actions)
-    #     if len(history_actions) > 1 and random.random() > self.dropout_rate:
-    #       history_actions = ", ".join(history_actions)
-    #       self._last_instr_embed, self._last_instr_ids = self.sample_with_vlm([pil_frame], history_actions)
-    #     self.instr_interval = random.randint(5, self.max_instr_interval)
-    #     self.last_step = step
-
-    # self.action_cache += [acts[0]['action']]
-    # for i in range(0, len(obs)-10):
-    #   obs[i]['instruction'] = obs[i+10]['instruction']
-    #   obs[i]['instruction_ids'] = obs[i+10]['instruction_ids']
     obs = {k: np.stack([x[k] for x in obs]) for k in obs[0].keys()}
-    # obs['instructions_ids'] = self.instr_ids
-    # obs['action_ids'] = self.action_ids
-    # print(obs['instructions_ids'].shape)
     logs = {k: v for k, v in obs.items() if k.startswith('log/')}
     obs = {k: v for k, v in obs.items() if not k.startswith('log/')}
     assert all(len(x) == self.length for x in obs.values()), obs

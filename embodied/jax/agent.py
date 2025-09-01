@@ -217,7 +217,7 @@ class Agent(embodied.Agent):
         self.params, self._seeds(0, self.train_mirrored), batch_size)
 
   @elements.timer.section('jaxagent_policy')
-  def policy(self, carry, obs, mode='train'):
+  def policy(self, carry, obs, mode='train', return_stop_token=False):
     if not self.jaxcfg.enable_policy:
       raise Exception('Policy not available when enable_policy=False')
     assert not any(k.startswith('log/') for k in obs), obs.keys()
@@ -240,9 +240,14 @@ class Agent(embodied.Agent):
       seed = self._seeds(counter, self.policy_mirrored)
       carry = internal.to_global(self._stack(carry), self.policy_sharded)
 
-    with self.policy_lock:
-      carry, acts, outs = self._policy(
-          self.policy_params, seed, carry, obs, mode)
+    if return_stop_token:
+      with self.policy_lock:
+        carry, acts, outs, p_stop = self._policy(
+            self.policy_params, seed, carry, obs, mode, return_stop_token)
+    else:
+      with self.policy_lock:
+        carry, acts, outs = self._policy(
+            self.policy_params, seed, carry, obs, mode)
 
     if self.jaxcfg.enable_policy:
       with self.policy_lock:
@@ -264,7 +269,10 @@ class Agent(embodied.Agent):
       else:
         assert np.isfinite(acts[key]).all(), (acts[key], key, space)
 
-    return carry, acts, outs
+    if return_stop_token:
+      return carry, acts, outs, p_stop
+    else:
+      return carry, acts, outs
 
   @elements.timer.section('jaxagent_train')
   def train(self, carry, data):

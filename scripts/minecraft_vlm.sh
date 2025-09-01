@@ -4,5 +4,6 @@ python3 dreamerv3/main.py \
     --configs minecraft \
     --task minecraft_climb \
     --agent.use_vlm True \
+    --run.envs  \
     --logdir ~/logdir/dreamer/minecraft_climb_vlm \
     --jax.policy_devices=0,1 --jax.train_devices=0,1

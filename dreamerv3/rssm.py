@@ -175,7 +175,13 @@ class RSSM(nj.Module):
     out = embodied.jax.outs.Agg(out, 1, jnp.sum)
     return out
 
+from transformers import FlaxAutoModel
+def _masked_mean(x, mask):
+  mask = mask[..., None].astype(x.dtype)         # [B,L,1]
+  denom = jnp.clip(mask.sum(axis=1), 1e-6)       # [B,1]
+  return (x * mask).sum(axis=1) / denom          # [B,D]
 
+from transformers import AutoTokenizer
 class Encoder(nj.Module):
 
   units: int = 1024
@@ -188,18 +194,40 @@ class Encoder(nj.Module):
   symlog: bool = True
   outer: bool = False
   strided: bool = False
+  lang_model_name: str = 'bert-base-uncased'
+  lang_trainable: bool = False   # set True if you want to finetune
 
-  def __init__(self, obs_space, **kw):
+  def __init__(self, obs_space, text_encoder=None, **kw):
     assert all(len(s.shape) <= 3 for s in obs_space.values()), obs_space
     self.obs_space = obs_space
-    self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2 and k != "action_ids"]
+    exclude = {"action_ids", "action_text_ids", "instructions_ids"}
+    self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2 and k not in exclude]
     self.imgkeys = [k for k, s in obs_space.items() if len(s.shape) == 3]
     self.depths = tuple(self.depth * mult for mult in self.mults)
     self.kw = kw
+    if "instructions_ids" in obs_space:
+      shape = obs_space["instructions_ids"].shape  # e.g., (K, L)
+      # last dim is token length L, so K is the second-to-last
+      self.K_instr = shape[-2] if len(shape) >= 2 else 1
+      lang_model, lang_params = text_encoder
+      lang_params = jax.tree.map(jax.lax.stop_gradient, lang_params)
+      self.lang = (lang_model, lang_params)
+
+      self.tokenizer = AutoTokenizer.from_pretrained(self.lang_model_name) 
+      if self.tokenizer is not None:
+          # pick a sane pad id even if tokenizer has none
+          pad_id = getattr(self.tokenizer, "pad_token_id", None)
+          if pad_id is None:
+              # try eos; otherwise fallback 0
+              pad_id = getattr(self.tokenizer, "eos_token_id", 0) or 0
+          self._pad_id = int(pad_id)
+      else:
+          self._pad_id = 0
+
 
   @property
   def entry_space(self):
-    return {}
+    return {'instr': elements.Space(np.float32, (self.units * self.K_instr,))}
 
   def initial(self, batch_size):
     return {}
@@ -223,31 +251,92 @@ class Encoder(nj.Module):
         x = nn.act(self.act)(self.sub(f'mlp{i}norm', nn.Norm, self.norm)(x))
       outs.append(x)
 
+    if "instructions_ids" in obs:
+      ids = obs["instructions_ids"]                # [..., K, L] or [..., L]
+      bdims = 1 if single else 2
+      amask = obs.get("instruction_mask", (ids != self._pad_id).astype(jnp.int32))
 
-    # if self.imgkeys:
-    #   K = self.kernel
-    #   imgs = [obs[k] for k in sorted(self.imgkeys)]
-    #   assert all(x.dtype == jnp.uint8 for x in imgs)
-    #   x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
-    #   x = x.reshape((-1, *x.shape[bdims:]))
-    #   for i, depth in enumerate(self.depths):
-    #     if self.outer and i == 0:
-    #       x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
-    #     elif self.strided:
-    #       x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, 2, **self.kw)(x)
-    #     else:
-    #       x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
-    #       B, H, W, C = x.shape
-    #       x = x.reshape((B, H // 2, 2, W // 2, 2, C)).max((2, 4))
-    #     x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
-    #   assert 2 <= x.shape[-3] <= 16, x.shape
-    #   assert 2 <= x.shape[-2] <= 16, x.shape
-    #   x = x.reshape((x.shape[0], -1))
-    #   outs.append(x)
+      # If mask missing K, broadcast it
+      if amask.ndim == ids.ndim - 1:               # [..., L]
+        amask = jnp.broadcast_to(amask[..., None, :], ids.shape)  # [..., K, L]
+
+      # Flatten leading batch dims (+K) for the LM call
+      assert ids.ndim >= bdims + 1
+      if ids.ndim == bdims + 2:
+        K, L = ids.shape[bdims], ids.shape[bdims + 1]
+        ids_flat   = ids.reshape((-1, L))          # [B*(T?)*K, L]
+        amask_flat = amask.reshape((-1, L))        # [B*(T?)*K, L]
+      else:
+        # No K dimension present; treat as K=1
+        K = 1
+        L = ids.shape[bdims]
+        ids_flat   = ids.reshape((-1, L))          # [B*(T?), L]
+        amask_flat = amask.reshape((-1, L))        # [B*(T?), L]
+
+      lang_model, lang_params = self.lang
+      out = lang_model(input_ids=ids_flat, attention_mask=amask_flat,
+                      params=lang_params, train=False)
+      x = out.last_hidden_state                    # [B*(K?), L, D]
+
+      # Token-masked mean -> per-instruction embedding
+      tok_mask = amask_flat[..., None].astype(x.dtype)  # [B*(K?), L, 1]
+      summed   = (x * tok_mask).sum(axis=1)             # [B*(K?), D]
+      counts   = jnp.clip(tok_mask.sum(axis=1), 1e-6)   # [B*(K?), 1]
+      emb_flat = summed / counts                        # [B*(K?), D]
+
+      # L2-normalize per instruction to unit length
+      norm_per = jnp.linalg.norm(emb_flat, ord=2, axis=1, keepdims=True)
+      emb_flat = emb_flat / jnp.clip(norm_per, 1e-6)
+      emb_flat = jnp.nan_to_num(emb_flat, nan=0.0, posinf=0.0, neginf=0.0)
+
+      # Stop grad, project to 'units'
+      emb_flat = sg(emb_flat)
+      emb_flat = self.sub('langproj', nn.Linear, self.units, **self.kw)(emb_flat)
+      emb_flat = nn.act(self.act)(self.sub('langprojnorm', nn.Norm, self.norm)(emb_flat))
+
+      # Reshape back to K, then concatenate across K -> [B*, K*units]
+      if K > 1:
+        emb_k  = emb_flat.reshape((-1, K, emb_flat.shape[-1]))   # [B*, K, units]
+        emb_cat = emb_k.reshape((emb_k.shape[0], -1))            # [B*, K*units]
+      else:
+        emb_cat = emb_flat                                       # [B*, units]
+
+      # OPTIONAL: re-normalize the concatenated vector so scale doesn’t grow with K
+      norm_cat = jnp.linalg.norm(emb_cat, ord=2, axis=1, keepdims=True)
+      emb_cat  = emb_cat / jnp.clip(norm_cat, 1e-6)
+      emb_cat  = jnp.nan_to_num(emb_cat, nan=0.0, posinf=0.0, neginf=0.0)
+
+      # Feed to rest of pipeline
+      emb_bt = emb_cat.reshape((*bshape, emb_cat.shape[-1]))     # [..., K*units]
+      outs.append(emb_cat)                                       # shape [-1, K*units]
+
+
+    if self.imgkeys:
+      K = self.kernel
+      imgs = [obs[k] for k in sorted(self.imgkeys)]
+      assert all(x.dtype == jnp.uint8 for x in imgs)
+      x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255 - 0.5
+      x = x.reshape((-1, *x.shape[bdims:]))
+      for i, depth in enumerate(self.depths):
+        if self.outer and i == 0:
+          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
+        elif self.strided:
+          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, 2, **self.kw)(x)
+        else:
+          x = self.sub(f'cnn{i}', nn.Conv2D, depth, K, **self.kw)(x)
+          B, H, W, C = x.shape
+          x = x.reshape((B, H // 2, 2, W // 2, 2, C)).max((2, 4))
+        x = nn.act(self.act)(self.sub(f'cnn{i}norm', nn.Norm, self.norm)(x))
+      assert 2 <= x.shape[-3] <= 16, x.shape
+      assert 2 <= x.shape[-2] <= 16, x.shape
+      x = x.reshape((x.shape[0], -1))
+      outs.append(x)
 
     x = jnp.concatenate(outs, -1)
     tokens = x.reshape((*bshape, *x.shape[1:]))
     entries = {}
+    if "instructions_ids" in obs:
+      entries['instr'] = emb_bt
     return carry, entries, tokens
 
 
@@ -269,7 +358,8 @@ class Decoder(nj.Module):
   def __init__(self, obs_space, **kw):
     assert all(len(s.shape) <= 3 for s in obs_space.values()), obs_space
     self.obs_space = obs_space
-    self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2 and k != "action_ids"]
+    exclude = {"action_ids", "action_text_ids", "instructions_ids"}
+    self.veckeys = [k for k, s in obs_space.items() if len(s.shape) <= 2 and k not in exclude]
     self.imgkeys = [k for k, s in obs_space.items() if len(s.shape) == 3]
     self.depths = tuple(self.depth * mult for mult in self.mults)
     self.imgdep = sum(obs_space[k].shape[-1] for k in self.imgkeys)

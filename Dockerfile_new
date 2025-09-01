@@ -1,8 +1,0 @@
-FROM vlminterface:latest
-
-RUN mkdir /app
-WORKDIR /app
-COPY embodied .
-RUN chown -R 1000:root ./embodied
-
-ENTRYPOINT ["sh", "entrypoint.sh"]
