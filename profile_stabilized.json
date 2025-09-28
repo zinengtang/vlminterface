@@ -1,0 +1,1127 @@
+{
+  "metadata": {
+    "task": "overcooked",
+    "global_steps": 200,
+    "global_runs": 3,
+    "global_warmup_steps": 50,
+    "fixed_instruction_cadence": 32,
+    "timestamp": "2025-09-24T11:27:48.138402",
+    "jax_devices": "[CudaDevice(id=0), CudaDevice(id=1)]",
+    "binding": "qwen_2_7_72",
+    "stub_vlm": false,
+    "stub_params": {
+      "ttft_ms": 30.0,
+      "tps": 40.0
+    }
+  },
+  "suites": [
+    {
+      "name": "vlm_token_numbers_all_scales",
+      "suite_params": {
+        "steps": 200,
+        "runs": 3,
+        "warmup_steps": 50
+      },
+      "variants": [
+        {
+          "scale": "small",
+          "scale_name": "size50m",
+          "ctrl_params": "~50M",
+          "vlm_key": "qwen-2b",
+          "vlm_name": "qwen2_5_vl_2b",
+          "vlm_params": "~2B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 8,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 2.9237274401821196,
+              "throughput": 68.40582923404855,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.29783371197325,
+                "latency_ms_p95": 232.56412739865482,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.49228684976697
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 232.12585365399718
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 231.90332809463143
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 2.7039653440006077,
+              "throughput": 73.9654450245628,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.17836817566837,
+                "latency_ms_p95": 232.86707610823214,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.54175497964025
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.36599112674594
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.4180609062314
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 3.606754081789404,
+              "throughput": 55.451521080909075,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.8048340135387,
+                "latency_ms_p95": 233.4130299743265,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.53943365812302
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.5142036639154
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 233.52566501125693
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "small_vlm8tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 65.94093177984014,
+            "std_throughput": 7.756637353160667,
+            "min_throughput": 55.451521080909075,
+            "max_throughput": 73.9654450245628,
+            "median_throughput": 68.40582923404855,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.11763008413435967
+          }
+        },
+        {
+          "scale": "small",
+          "scale_name": "size50m",
+          "ctrl_params": "~50M",
+          "vlm_key": "qwen-2b",
+          "vlm_name": "qwen2_5_vl_2b",
+          "vlm_params": "~2B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 32,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 3.5225324323400855,
+              "throughput": 56.77733387599676,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 831.0057509557477,
+                "latency_ms_p95": 831.8387016654015,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.1994609646499
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.7055399529636
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.2127146162093
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 3.2036636932753026,
+              "throughput": 62.42852532237168,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 830.7564575890345,
+                "latency_ms_p95": 831.9467453751713,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.4408267140388
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.5761641822755
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.1913677714765
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 3.161602111067623,
+              "throughput": 63.25906707231517,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 831.4252222355988,
+                "latency_ms_p95": 832.6770728919655,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.186512786895
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.2124442309141
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 832.4548220261931
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "small_vlm32tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 60.82164209022787,
+            "std_throughput": 2.879788371665843,
+            "min_throughput": 56.77733387599676,
+            "max_throughput": 63.25906707231517,
+            "median_throughput": 62.42852532237168,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.04734808651489097
+          }
+        },
+        {
+          "scale": "small",
+          "scale_name": "size50m",
+          "ctrl_params": "~50M",
+          "vlm_key": "qwen-2b",
+          "vlm_name": "qwen2_5_vl_2b",
+          "vlm_params": "~2B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 128,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 5.458442950155586,
+              "throughput": 36.64048554254822,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3230.7700913266412,
+                "latency_ms_p95": 3231.963715655729,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.383601039648
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.7066889479756
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.178957339376
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 5.972365850117058,
+              "throughput": 33.487566739750214,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3230.334168566125,
+                "latency_ms_p95": 3230.783440498635,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.427752714604
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.9358781203628
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.181952007115
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 6.35412352764979,
+              "throughput": 31.475623526943664,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3230.217353041683,
+                "latency_ms_p95": 3230.3068920969963,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.339197907597
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.2315118722618
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.185749940574
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "small_vlm128tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 33.86789193641403,
+            "std_throughput": 2.125627021449078,
+            "min_throughput": 31.475623526943664,
+            "max_throughput": 36.64048554254822,
+            "median_throughput": 33.487566739750214,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.06276230671338741
+          }
+        },
+        {
+          "scale": "medium",
+          "scale_name": "size200m",
+          "ctrl_params": "~200M",
+          "vlm_key": "qwen-7b",
+          "vlm_name": "qwen2_5_vl_7b",
+          "vlm_params": "~7B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 8,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 3.0392699553631246,
+              "throughput": 65.80527657540854,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.05049352826816,
+                "latency_ms_p95": 233.53800433687866,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 234.24359504133463
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 231.8916260264814
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.21678114309907
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 3.594019644893706,
+              "throughput": 55.64799855341777,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 232.60939021461778,
+                "latency_ms_p95": 236.0763853881508,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 236.69294686987996
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 234.6377419307828
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.17671704292297
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 2.339681101962924,
+              "throughput": 85.48173502457486,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.11165454611182,
+                "latency_ms_p95": 232.00415391474962,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.32811097800732
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 232.0961570367217
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.92168988659978
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "medium_vlm8tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 68.97833671780039,
+            "std_throughput": 12.384511589294078,
+            "min_throughput": 55.64799855341777,
+            "max_throughput": 85.48173502457486,
+            "median_throughput": 65.80527657540854,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.17954204433720652
+          }
+        },
+        {
+          "scale": "medium",
+          "scale_name": "size200m",
+          "ctrl_params": "~200M",
+          "vlm_key": "qwen-7b",
+          "vlm_name": "qwen2_5_vl_7b",
+          "vlm_params": "~7B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 32,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 4.262772469781339,
+              "throughput": 46.917822008515294,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 831.6326241141984,
+                "latency_ms_p95": 833.7358499877155,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.2279687486589
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 832.0368309505284
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.9876369312406
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 4.307960256934166,
+              "throughput": 46.42568363486562,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 832.7261887357703,
+                "latency_ms_p95": 833.9361935388297,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 833.4365892224014
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 834.1503096744418
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 833.2052389159799
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 4.247222449630499,
+              "throughput": 47.08959852512544,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 832.846689570163,
+                "latency_ms_p95": 835.5273138266057,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.9510640576482
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.6983580589294
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 832.1776012890041
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "medium_vlm32tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 46.81103472283545,
+            "std_throughput": 0.28136380798333893,
+            "min_throughput": 46.42568363486562,
+            "max_throughput": 47.08959852512544,
+            "median_throughput": 46.917822008515294,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.006010629964692566
+          }
+        },
+        {
+          "scale": "medium",
+          "scale_name": "size200m",
+          "ctrl_params": "~200M",
+          "vlm_key": "qwen-7b",
+          "vlm_name": "qwen2_5_vl_7b",
+          "vlm_params": "~7B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 128,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 6.349599949084222,
+              "throughput": 31.498047373653076,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3231.5684825048916,
+                "latency_ms_p95": 3233.409537700936,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3233.55804476887
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3231.6925222985446
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3233.063021209091
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 6.742407063022256,
+              "throughput": 29.662996928333015,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3232.034655553954,
+                "latency_ms_p95": 3233.1390616949648,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3233.2589719444513
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3232.8592711128294
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3231.7948350682855
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 5.93414463987574,
+              "throughput": 33.703256684385096,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3230.3655979755736,
+                "latency_ms_p95": 3230.6128987576813,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.2031363360584
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.246990919113
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.6777890771627
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "medium_vlm128tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 31.62143366212373,
+            "std_throughput": 1.6517350183429194,
+            "min_throughput": 29.662996928333015,
+            "max_throughput": 33.703256684385096,
+            "median_throughput": 31.498047373653076,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.05223466576473962
+          }
+        },
+        {
+          "scale": "large",
+          "scale_name": "size400m",
+          "ctrl_params": "~400M",
+          "vlm_key": "qwen-72b",
+          "vlm_name": "qwen2_5_vl_72b",
+          "vlm_params": "~72B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 8,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 3.5597050487995148,
+              "throughput": 56.184430243019314,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 230.5844654329121,
+                "latency_ms_p95": 232.15506225824356,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.15788896009326
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.21662281826138
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 232.98582201823592
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 3.3796321018598974,
+              "throughput": 59.17803890249915,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 231.1004388944379,
+                "latency_ms_p95": 232.21087320707738,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.93985812738538
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.65374419093132
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 231.43656086176634
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 3.5275288126431406,
+              "throughput": 56.69691464550848,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 230.81070723544275,
+                "latency_ms_p95": 231.5944833215326,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.60750076547265
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.17690889537334
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 230.8674738742411
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "large_vlm8tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 57.35312793034232,
+            "std_throughput": 1.3072579719709703,
+            "min_throughput": 56.184430243019314,
+            "max_throughput": 59.17803890249915,
+            "median_throughput": 56.69691464550848,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.022793141702030405
+          }
+        },
+        {
+          "scale": "large",
+          "scale_name": "size400m",
+          "ctrl_params": "~400M",
+          "vlm_key": "qwen-72b",
+          "vlm_name": "qwen2_5_vl_72b",
+          "vlm_params": "~72B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 32,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 4.824984529986978,
+              "throughput": 41.450910102822604,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 830.8771341107786,
+                "latency_ms_p95": 831.2947223428637,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.0538828372955
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.2862322889268
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.7746718637645
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 3.975738068111241,
+              "throughput": 50.30512487836359,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 830.215054630701,
+                "latency_ms_p95": 830.3202688228339,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.2422799170017
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.1622690632939
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.3483952768147
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 4.8183051738888025,
+              "throughput": 41.50837125963571,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 831.2706291409476,
+                "latency_ms_p95": 833.9121989905834,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.164615996182
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 830.5299687199295
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 831.3410538248718
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "large_vlm32tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 44.42146874694063,
+            "std_throughput": 4.160439283758291,
+            "min_throughput": 41.450910102822604,
+            "max_throughput": 50.30512487836359,
+            "median_throughput": 41.50837125963571,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.0936583008423112
+          }
+        },
+        {
+          "scale": "large",
+          "scale_name": "size400m",
+          "ctrl_params": "~400M",
+          "vlm_key": "qwen-72b",
+          "vlm_name": "qwen2_5_vl_72b",
+          "vlm_params": "~72B",
+          "eval": {
+            "instruction_cadence": 32,
+            "planning_mode": "online",
+            "vlm_tokens": 128,
+            "num_agents": null,
+            "comm_mode": null,
+            "comm_frequency": null,
+            "comm_leader": null
+          },
+          "runs": [
+            {
+              "run_idx": 0,
+              "total_time": 6.417583184782416,
+              "throughput": 31.164379836048962,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3231.2529854077316,
+                "latency_ms_p95": 3232.6365580782294,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3232.7354410663247
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.282783973962
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3232.405831106007
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 1,
+              "total_time": 6.880376671906561,
+              "throughput": 29.068175993419814,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3231.0520615428686,
+                "latency_ms_p95": 3232.1234116330743,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.356134939939
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.478748679161
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.8840421028435
+                  }
+                ]
+              }
+            },
+            {
+              "run_idx": 2,
+              "total_time": 6.713892346713692,
+              "throughput": 29.788979279343934,
+              "steps": 200,
+              "status": "success",
+              "vlm_stub": {
+                "calls": 7,
+                "latency_ms_mean": 3230.842471654926,
+                "latency_ms_p95": 3232.624211581424,
+                "samples": [
+                  {
+                    "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.6975168175995
+                  },
+                  {
+                    "prompt": "[obs@t=32] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #1] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3230.3270837292075
+                  },
+                  {
+                    "prompt": "[obs@t=64] goal: serve onion soup; status: N/A",
+                    "plan": "[plan #2] step-left; pickup-onion; go-stove",
+                    "latency_ms": 3231.006280053407
+                  }
+                ]
+              }
+            }
+          ],
+          "tag": "large_vlm128tok_with_vlm",
+          "benchmark_params": {
+            "steps": 200,
+            "runs": 3,
+            "warmup_steps": 50
+          },
+          "stats": {
+            "mean_throughput": 30.007178369604237,
+            "std_throughput": 0.8695691537407549,
+            "min_throughput": 29.068175993419814,
+            "max_throughput": 31.164379836048962,
+            "median_throughput": 29.788979279343934,
+            "successful_runs": 3,
+            "failed_runs": 0,
+            "cv": 0.028978704462982258
+          }
+        }
+      ]
+    }
+  ]
+}

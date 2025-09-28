@@ -1,5 +1,3 @@
-
-
 """
 TeamCraftEmbodied: Refactored observation processing with structured keys
 """
@@ -60,6 +58,24 @@ DEFAULT_OUTPUT    = "./outputs"
 MC_PORT_RANGE = (25565, 25999)
 HTTP_PORT_RANGE = (3000, 3999)
 
+
+# MineRL-like low-level action space (single-tick)
+ACTIONS = [
+    "noop",
+    "attack",
+    "turn_up",
+    "turn_down",
+    "turn_left",
+    "turn_right",
+    "forward",
+    "back",
+    "left",
+    "right",
+    "jump",
+    "place_dirt",
+]
+_ACT_DICT = {i: a for i, a in enumerate(ACTIONS)}
+_DEG_STEP = 15  # degrees per turn action
 
 # ========================= Wrapper implementation =============================
 
@@ -176,6 +192,7 @@ class TeamCraft(embodied.Env):
     @property
     def act_names(self):
         return list(self._ACT_DICT.values())
+
     
     @property
     def act_space(self) -> Dict[str, elements.Space]:
@@ -391,18 +408,16 @@ class TeamCraft(embodied.Env):
         
         print(1, time.time()-start)
         start = time.time()
-        # Convert action indices to JavaScript commands if action provided
+        # Convert action indices to a single Promise that applies per-bot MineRL-like ticks
         js_code = None
         if action_array is not None and len(action_array) >= 2:
-            # Build JavaScript commands for each bot
-            js_commands = []
-            for i, (bot_name, act_id) in enumerate(zip(['bot1', 'bot2'], action_array)):
-                js_cmd = self._macro_to_js_call(bot_name, int(act_id))
-                if js_cmd:
-                    js_commands.append(js_cmd)
-            
-            if js_commands:
-                js_code = " ".join(js_commands)
+            # Build "await Promise.all([applyMinerlAction(bot1, {...}, dt), ...]);"
+            calls = []
+            dt_ms = max(1, int(self.move_seconds * 1000))
+            for bot_name, act_id in zip(['bot1', 'bot2'], action_array):
+                calls.append(self._minerl_to_js_call(bot_name, int(act_id), dt_ms))
+            js_code = f"await Promise.all([{', '.join(calls)}]);"
+
         
         print(2, time.time()-start)
         start = time.time()
@@ -431,12 +446,9 @@ class TeamCraft(embodied.Env):
         self.reward = self.reward_function(_inventory_list, self.done_input)
         self.done = self.reward == 1
         self.state = filter_voxel(self.observation, self.place_of_interest)
-        print(4, time.time()-start)
-        start = time.time()
         self.image = self.env.render()
-        print(self.image.keys())
         
-        print(5, time.time()-start)
+        print(4, time.time()-start)
         start = time.time()
         # Create metadata
         metadata = {
@@ -453,7 +465,7 @@ class TeamCraft(embodied.Env):
         # Process into structured observation
         obs = self._obs(metadata, action, is_first=False)
         
-        print(6, time.time()-start)
+        print(5, time.time()-start)
         start = time.time()
         return obs
 
@@ -510,7 +522,7 @@ class TeamCraft(embodied.Env):
         print('World has been set up')
         
         # Start recording
-        code = "await bot4.chat('startRecoding -1 "+ " "+"\');"
+        code = "await bot3.chat('startRecoding -1 "+ " "+"\');"
         self.env.step_manuual(code=code)
         
         # Look at middle
@@ -547,22 +559,72 @@ class TeamCraft(embodied.Env):
         for item in bag_item:
             total += item.get(done_input[0], 0)
         return total / done_input[1]
+    
+    def _minerl_action_table(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Canonical MineRL-like actions (environment-side).
+        IMPORTANT: In this table, 'camera' is expressed as (pitch_deg, yaw_deg)
+        for readability. We'll swap it to [yaw, pitch] when emitting JS to match
+        applyMinerlAction(bot, {camera:[dyaw, dpitch]}, ...).
+        """
+        s = self._DEG_STEP if hasattr(self, "_DEG_STEP") else 15
+        return {
+            'noop':        {},
+            'attack':      {'attack': 1},
+            'turn_up':     {'camera': (-s, 0)},
+            'turn_down':   {'camera': ( s, 0)},
+            'turn_left':   {'camera': ( 0, -s)},
+            'turn_right':  {'camera': ( 0,  s)},
+            'forward':     {'forward': 1},
+            'back':        {'back': 1},
+            'left':        {'left': 1},
+            'right':       {'right': 1},
+            'jump':        {'jump': 1, 'forward': 1},
+            # place_dirt uses an item string; we will emit equip='dirt' + place=1
+            'place_dirt':  {'place': 'dirt'},
+        }
 
-    def _macro_to_js_call(self, bot_name: str, act_id: int) -> str:
-        """Convert action ID to JavaScript command for a specific bot."""
-        if act_id == 0:   # STAY
-            return ""
-        elif act_id == 1:   # NORTH (negative Z)
-            return f"await exploreUntil({bot_name}, new Vec3(0, 0, -1), {self.move_seconds});"
-        elif act_id == 2:   # SOUTH
-            return f"await exploreUntil({bot_name}, new Vec3(0, 0, 1), {self.move_seconds});"
-        elif act_id == 3:   # WEST (negative X)
-            return f"await exploreUntil({bot_name}, new Vec3(-1, 0, 0), {self.move_seconds});"
-        elif act_id == 4:   # EAST (positive X)
-            return f"await exploreUntil({bot_name}, new Vec3(1, 0, 0), {self.move_seconds});"
-        elif act_id == 5:   # INTERACT
-            return self._interact_macro(bot_name)
-        return ""
+    def _minerl_to_js_call(self, bot_name: str, act_id: int, dt_ms: int) -> str:
+        """
+        Translate a discrete action id to a JS call: applyMinerlAction(bot, {...}, dt).
+        - Converts camera (pitch, yaw) -> [dyaw, dpitch]
+        - Converts place='<item>' -> equip='<item>' + place=1
+        """
+        name = self._ACT_DICT.get(int(act_id), 'noop')
+        table = self._minerl_action_table()
+        spec = dict(table.get(name, {}))  # copy
+
+        # Camera mapping: (pitch, yaw) -> [dyaw, dpitch]
+        if 'camera' in spec and isinstance(spec['camera'], (tuple, list)) and len(spec['camera']) == 2:
+            pitch, yaw = spec['camera']
+            spec['camera'] = [float(yaw), float(pitch)]  # JS expects [dyaw, dpitch]
+
+        # place item mapping: 'place': 'dirt' -> equip='dirt', place=1
+        if 'place' in spec and isinstance(spec['place'], str):
+            item = spec['place']
+            spec['equip'] = item
+            spec['place'] = 1
+
+        # Build JSON for JS
+        js_payload = json.dumps(spec)
+        return f"applyMinerlAction({bot_name}, {js_payload}, {int(dt_ms)})"
+
+
+    # def _macro_to_js_call(self, bot_name: str, act_id: int) -> str:
+    #     """Convert action ID to JavaScript command for a specific bot."""
+    #     if act_id == 0:   # STAY
+    #         return ""
+    #     elif act_id == 1:   # NORTH (negative Z)
+    #         return f"await exploreUntil({bot_name}, new Vec3(0, 0, -1), {self.move_seconds});"
+    #     elif act_id == 2:   # SOUTH
+    #         return f"await exploreUntil({bot_name}, new Vec3(0, 0, 1), {self.move_seconds});"
+    #     elif act_id == 3:   # WEST (negative X)
+    #         return f"await exploreUntil({bot_name}, new Vec3(-1, 0, 0), {self.move_seconds});"
+    #     elif act_id == 4:   # EAST (positive X)
+    #         return f"await exploreUntil({bot_name}, new Vec3(1, 0, 0), {self.move_seconds});"
+    #     elif act_id == 5:   # INTERACT
+    #         return self._interact_macro(bot_name)
+    #     return ""
 
     def _interact_macro(self, bot_name: str) -> str:
         """Generate interact command for a bot (task-specific)."""

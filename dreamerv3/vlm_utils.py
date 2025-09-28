@@ -1,77 +1,49 @@
+# ===== File: vlm_utils.py =====
 """
-vlm_utils.py
--------------
-Unified wrappers around several vision‑language models (VLMs) for
-Dreamer‑style agents.
+Unified wrappers around several vision‑language models (VLMs) for Dreamer‑style
+agents, with explicit support for Qwen/Qwen2.5‑VL 3B/7B/32B.
 
-Supported models
-----------------
-* Qwen/Qwen2.5‑VL‑3B‑Instruct
-* llava-hf/llava‑1.5‑7b‑hf
-* google/gemma‑3‑12b‑it (requires HF token)
+Quick usage
+-----------
+>>> from vlm_utils import VLMWrapper
+>>> vlm = VLMWrapper(model_type="qwenvl", model_id="Qwen/Qwen2.5-VL-7B-Instruct", device=0)
+>>> cmds = vlm(frames=[pil_image], action_lists=[["north", "north", "interact pot"]])
 
-Each wrapper normalises the call signature to
-
->>> wrapper = VLMWrapper(model_type="qwen", device=0)
->>> cmd_strs = wrapper(frames, action_lists)  # List[str]
-
-where
-frames:        list[PIL.Image]        – single RGB frames
-action_lists:  list[list[str]]        – low‑level key strings per frame
-
-The system prompt used to coax a high‑level command is shared across models
-but can be overridden per call.
+Notes
+-----
+- For Qwen2.5‑VL, we rely on `transformers.AutoProcessor` and
+  `transformers.AutoModelForCausalLM` with `trust_remote_code=True`.
+- We use `qwen_vl_utils.process_vision_info` when available for preprocessing;
+  otherwise we pass raw PIL images into the processor.
+- Return value is a list of strings, one per (frame, action_list) pair.
+- We extract commands wrapped in ##...## when present; otherwise we return the
+  raw generated text.
 """
+
+from __future__ import annotations
 
 import os
+import re
 import json
 from typing import List, Optional
 
-import re
 import torch
 from PIL import Image
+
 from transformers import (
     AutoProcessor,
-    # Qwen2_5_VLForConditionalGeneration,
-    # LlavaForConditionalGeneration,
-    # Gemma3ForConditionalGeneration,
     AutoModelForCausalLM,
     AutoTokenizer,
-    pipeline
 )
 
-# Qwen helper util (shipped with the official repo)
+# Optional helper from Qwen repo for vision inputs
 try:
     from qwen_vl_utils import process_vision_info  # type: ignore
-except ImportError:
-    process_vision_info = None  # Qwen will handle raw PIL images instead
+except Exception:  # pragma: no cover
+    process_vision_info = None
 
 # ---------------------------------------------------------------------------
-# Action LUT – map discrete env action ids to human‑readable strings.
-# Extend or modify to match the task.
-# ---------------------------------------------------------------------------
-ACTION_LUT = {
-    0: "noop",
-    1: "move_left",
-    2: "move_right",
-    3: "move_up",
-    4: "move_down",
-    5: "do",
-    6: "sleep",
-    7: "place_stone",
-    8: "place_table",
-    9: "place_furnace",
-    10: "place_plant",
-    11: "make_wood_pickaxe",
-    12: "make_stone_pickaxe",
-    13: "make_iron_pickaxe",
-    14: "make_wood_sword",
-    15: "make_stone_sword",
-    16: "make_iron_sword",
-}
-
-# ---------------------------------------------------------------------------
-# Shared prompt
+# Shared prompts
 # ---------------------------------------------------------------------------
 BASE_PROMPT = (
     "You are an expert game analyst. Given a single game frame and the list "
@@ -80,413 +52,233 @@ BASE_PROMPT = (
     "to do. Reply with an imperative verb phrase, no punctuation."
 )
 
-SUMMARIZE_BASE_PROMPT = """
-ROLE  
-You are a veteran game-play analyst for building architecture.
-
-TASK  
-Given a stream of low-level key presses for N consecutive frames, infer the *single, overarching intention* behind them and express it as **one short imperative phrase**.
-
-OUTPUT RULES  
-1. Exactly **one line**, 2-15 words, *imperative mood*.  
-2. **Do NOT** list individual key presses or micro-actions; condense them into the highest-level goal they collectively serve.  
-3. If the sequence contains two clear, sequential goals, you may link them with “then”, but never list more than two.  
-4. Choose the **most plausible game-typical intention** when several are possible.  
-5. No punctuation, quotes, code fences, or extra commentary—just the phrase.
-"""
-
-PROACTIVE_PROMPT = (
-    "You are an expert game analyst. Given a single game frame and the list "
-    "of low‑level key presses executed over the next N frames, output a YES or No if"
-    "you think the agent needs to new actions at current moment"
+GENERAL_PROMPT = (
+    "You are helpful AI assistant. You are controlling the agent playing a game. "
+    "Analyze a series of movement actions to summarize as a medium to high level imperative. "
+    "Keep your thought process succinct. And always wrap the final high level action command with ##...## "
+    "Diversify your language style. Be creative. Make your instruction randomly from low level to high level. "
+    "Don't output instruction that has anything other than the action description. "
+    "Your instruction should cover all actions either in high level or low level and juxtapose all instructions with 'and'."
 )
 
+OVERCOOKED_PROMPT = (
+    "You are helpful AI assistant. In overcooked game, analyze a series of movement actions of an agent "
+    "to summarize as a medium to high level imperative. Always wrap the final command with ##...##. "
+    "Keep the output succinct (≤16 words). Don't add facts not present in actions."
+)
 
-CLIMB_PROMPT = """
-    You are an expert game analyst. In Minecraft survival mode, you need to reach a latitude as high as possible.
-    Based on what you see, output ONE short, medium-level command that best describes what the agent
-    needs to do in order to reach a high latitude. Reply with an imperative phrase, no punctuation.
-    If the target distance is far, try to break it down into smallers steps and reply step 1 like "go to the forest".
-"""
-
-GENERAL_PROMPT = """
-You are helpful AI assistant.
-You are controlling the agent playing a game.
-Analyze a series of movement actions to summarize as a medium to high level imperative.
-Keep your thought process succinct. And always wrap the final high level action command with ##...##
-Diversify your language style. Be creative. Make your instruction randomly from low level to high level.
-Don't output instruction that has anything other than the action description.
-Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
-"""
-
-MINECRAFT_PROMPT = """
-You are helpful AI assistant.
-You are controlling the agent playing minecraft climbing the tech tree.
-Analyze a series of movement actions to summarize as a medium to high level imperative.
-
-Tips:
-attacks could be breaking something in Minecraft.
-
-Keep your thought process succinct. And always wrap the final high level action command with ##...##
-Diversify your language style. Be creative. Make your instruction randomly from low level to high level.
-Don't output instruction that has anything other than the action description.
-Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
-"""
+PROACTIVE_PROMPT = (
+    "You are an expert game analyst. Given a single frame and key presses for the next N frames, output YES or NO "
+    "if the agent needs new actions now."
+)
 
 # ---------------------------------------------------------------------------
-OVERCOOKED_PROMPT = """
-You are helpful AI assistant.
-In overcooked game, analyze a series of movement actions of a agent to summarize as a medium to high level imperative.
-
-For example (not relevent to actual environments):
-with input being 'Action List: south, south, interact onion' output '##Grab onions##'
-with input being 'Action List: south, west, interact onion, north, north, interact tomatoes' output '##Grab tomatoes##'
-with input being 'Action List: stay, stay, stay' output '##Stay##'
-with input being 'Action List: west holding onion, north holding onion, interact pot' output '##Delever onion to pot##'
-with input being 'Action List: west holding dish, north holding dish' output '##Deliver dish##'
-with input being 'Action List: north, north, north, north' output '##Go all the way north##'
-with input being 'Action List: south, west' output nothing because this movement does not make sense
-
-other real examples:
-actions: south hold dish at onion, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion, stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot, south hold soup at pot
-caption: Collect dish, pass onion station, bowl soup at pot.
-
-actions: west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion, interact onion, south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion
-caption: Collect onions; ferry them from dispenser across kitchen.
-
-actions: north hold onion at onion, stay hold onion at onion, south hold onion at onion, west hold onion at onion
-caption: Move one onion from dispenser to adjacent station.
-
-actions: west, east, south, east, south at onion, interact onion, west hold onion at onion
-caption: Grab an onion; relocate toward adjacent station.
-
-actions: stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot
-caption: Carry dish to pot; ladle soup into bowl.
-
-actions: south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion
-caption: Collect onions from dispenser and consolidate at workstation.
-
-actions: south at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion
-caption: Stockpile onions from dispenser; continue gathering for recipe.
-
-actions: west hold onion at onion, east hold onion, north hold onion at onion, south hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion, west hold onion at onion, stay hold onion, east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion
-caption: Gather onions for cooking; stage them near workstation.
-
-actions: south hold onion at onion, south hold onion at onion, west hold onion at onion, stay hold onion
-caption: Keep holding onion; adjust position and pause.
-
-actions: south hold onion at onion, west hold onion at onion, north hold onion, stay hold onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion
-caption: Carry onion while navigating between stations.
-
-actions: north hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion
-caption: Transport onion around stations to staging area.
-
-actions: interact serve, south at serve, stay at serve, west at serve, stay, west, north at dish, stay at onion, south at onion, south at dish, interact dish, south hold dish at dish, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion
-caption: Serve finished order; restock a clean dish near onion.
-
-actions: west hold onion at onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion
-caption: Continuously take onions; stage supply across kitchen.
-
-actions: east hold onion, north hold onion at onion, west hold onion at onion, stay hold onion, south hold onion, east hold onion, north hold onion at onion, stay hold onion at onion, west hold onion at onion, east hold onion, north hold onion at onion, stay hold onion at onion, south hold onion at onion, west hold onion at onion, east hold onion, south hold onion at onion
-caption: Shuttle onion between stations to maintain supply.
-
-actions: north hold dish at dish, stay hold dish at onion, south hold dish at onion, east hold dish at dish, west hold dish, north hold dish at dish, stay hold dish at onion, stay hold dish at onion, east hold dish at onion, north hold dish at pot, interact pot, interact pot, south hold soup at pot, stay hold soup, east hold soup
-caption: Bring dish to pot; bowl soup and depart toward serving.
-
-actions: east hold onion, south hold onion at onion, interact onion, west hold onion at onion, east hold onion, south hold onion at onion, west hold onion at onion, east hold onion
-caption: Grab an onion; shuttle between stations to build stock.
-
-And always wrap the final high level action command with ##...##
-Keep the output as succinct imperative within 16 words.
-Don't specify the exact movement too much but don't be too general either.
-Don't add anything that didn't appear in the actions, e.g., where did the agent deliver the stuff to.
-Your instruction should cover all actions either in high level or low level and juxtopse all instructions with 'and'.
-"""
-
+# Utilities
 # ---------------------------------------------------------------------------
-CRAFTER_PROMPT = """
-Autonomous Crafter VLM:
-Analyze each screenshot to set high-level goals—explore, gather, craft, unlock achievements—and suggest proactive next steps.
-Adapt your plan as new images arrive.
-# Example 1
-# Screenshot: player standing in a dense forest with no tools visible
-# Agent →
-# “Goal: Collect wood to craft basic tools.”
-
-# Example 2
-# Screenshot: player next to exposed stone wall and some coal
-# Agent →
-# “Goal: Establish a smelting station. ”
-
-# Example 3
-# Screenshot: player with iron pickaxe near iron ore deposit
-# Agent →
-# “Goal: Mine 5 iron ore, smelt into ingots, craft an iron sword and iron pickaxe.”
-"""
-
 import base64
 import io
-from PIL import Image
 
 def pil_to_data_uri(img: Image.Image, format: str = 'JPEG') -> str:
-    """
-    Convert a PIL Image to a Base64 data URI.
-    Args:
-      img: PIL.Image.Image instance.
-      format: image format, e.g. 'JPEG' or 'PNG'.
-    Returns:
-      A string like 'data:image/jpeg;base64,/9j/4AAQ...'
-    """
+    """Convert a PIL Image to a Base64 data URI (Qwen chat expects data URIs)."""
     buffered = io.BytesIO()
     img.save(buffered, format=format)
     b64 = base64.b64encode(buffered.getvalue()).decode('ascii')
     mime = f"image/{format.lower()}"
     return f"data:{mime};base64,{b64}"
 
+
 # ---------------------------------------------------------------------------
-# Unified wrapper
+# VLM Wrapper
 # ---------------------------------------------------------------------------
 class VLMWrapper:
-    """Load a chosen VLM once and provide a common __call__ interface."""
+    """Load a chosen VLM once and provide a common __call__ interface.
 
-    SUPPORTED = {"qwen", "llava", "gemma"}
+    Supported model_type values:
+      - "qwenvl"  -> Qwen/Qwen2.5-VL (3B/7B/32B) via model_id
+      - "phi3"    -> (text-only fallback, optional)
+
+    For other families you can extend similarly (llava, gemma, etc.).
+    """
+
+    SUPPORTED = {"qwenvl", "phi3"}
 
     def __init__(
         self,
-        model_type: str = "phi3",
+        model_type: str = "qwenvl",
+        model_id: Optional[str] = None,
         device: int | str = 0,
         dtype: torch.dtype = torch.bfloat16,
-        gemma_token: Optional[str] = None,
-        action_map_path = None,
+        gemma_token: Optional[str] = None,  # reserved for future
+        action_map_path: Optional[str] = None,
     ) -> None:
-        model_type = model_type.lower()
-        # if model_type not in self.SUPPORTED:
-        #     raise ValueError(f"Unsupported model_type {model_type}. Choose from {self.SUPPORTED}.")
+        model_type = (model_type or "").lower()
+        if model_type not in self.SUPPORTED:
+            raise ValueError(f"Unsupported model_type {model_type}. Choose from {self.SUPPORTED}.")
 
         self.model_type = model_type
         self.device = torch.device(f"cuda:{device}" if isinstance(device, int) else device)
         self.dtype = dtype
-        if os.path.exists(action_map_path):
-            self.action_maps = json.load(open(action_map_path))
+        self.tokenizer = None
+        self.processor = None
+
+        if action_map_path and os.path.exists(action_map_path):
+            try:
+                self.action_maps = json.load(open(action_map_path, "r"))
+            except Exception:
+                self.action_maps = None
         else:
             self.action_maps = None
 
-        if model_type == "phi3":
-            torch.random.manual_seed(0) 
-            self.model = AutoModelForCausalLM.from_pretrained( 
-                "microsoft/Phi-3-medium-4k-instruct", 
-                torch_dtype=dtype,  
-                trust_remote_code=True,  
+        if self.model_type == "qwenvl":
+            from transformers import BitsAndBytesConfig
+            self.quantize = "8bit"
+            bnb_config = None
+            if self.quantize in {"8bit", "4bit"}:
+                bnb_config = BitsAndBytesConfig(
+                    load_in_8bit = (self.quantize == "8bit"),
+                    load_in_4bit = (self.quantize == "4bit"),
+                    llm_int8_threshold=6.0,           # good default
+                    llm_int8_has_fp16_weight=False,   # typical setting
+                    # You can enable CPU offload if VRAM is tight:
+                    # llm_int8_enable_fp32_cpu_offload=True,
+                )
+
+            # Default to 7B if not specified
+            self.model_id = model_id or "Qwen/Qwen2.5-VL-7B-Instruct"
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_id,
+                torch_dtype=None if bnb_config else self.dtype,  # dtype handled by bnb if quantized
+                trust_remote_code=True,
+                low_cpu_mem_usage=True,
+                quantization_config=bnb_config,                  # << enable 8-bit/4-bit
             ).to(self.device).eval()
-            self.tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct") 
-            self.processor = AutoProcessor.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
-            self.pipe = pipeline( 
-                "text-generation", 
-                model=self.model, 
-                tokenizer=self.tokenizer, 
-            ) 
-
-            # messages = [ 
-            #     {"role": "system", "content": "Summarize these actions."}, 
-            # ]
-
-        if model_type == "qwen":
-            self.model_id = "Qwen/Qwen2.5-VL-7B-Instruct"
+            self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
+            # Qwen chat typically doesn't use a standalone tokenizer, processor wraps it
+        elif self.model_type == "phi3":  # optional text-only fallback
+            self.model_id = model_id or "microsoft/Phi-3-medium-4k-instruct"
             self.model = (
-                Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                    self.model_id, torch_dtype=dtype, low_cpu_mem_usage=True
+                AutoModelForCausalLM.from_pretrained(
+                    self.model_id,
+                    torch_dtype=dtype,
+                    trust_remote_code=True,
                 )
                 .to(self.device)
                 .eval()
             )
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-            self.processor = AutoProcessor.from_pretrained(self.model_id)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, trust_remote_code=True)
+            self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True)
+        else:
+            raise AssertionError("unreachable")
 
-        elif model_type == "llava":
-            self.model_id = "llava-hf/llava-1.5-7b-hf"
-            self.model = (
-                LlavaForConditionalGeneration.from_pretrained(
-                    self.model_id, torch_dtype=dtype, low_cpu_mem_usage=True
-                )
-                .to(self.device)
-                .eval()
-            )
-            self.processor = AutoProcessor.from_pretrained(self.model_id)
-
-        elif model_type == "gemma":
-            self.model_id = "google/gemma-3-12b-it"
-            token = gemma_token or os.getenv("GEMMA_TOKEN")
-            if token is None:
-                raise ValueError("Gemma model requires a HF token. Pass gemma_token or set GEMMA_TOKEN env var.")
-            self.model = (
-                Gemma3ForConditionalGeneration.from_pretrained(
-                    self.model_id, token=token, torch_dtype=dtype, low_cpu_mem_usage=True
-                )
-                .to(self.device)
-                .eval()
-            )
-            self.processor = AutoProcessor.from_pretrained(self.model_id, token=token)
-
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Public API
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
     @torch.no_grad()
     def __call__(
         self,
         frames: List[Image.Image],
-        action_lists = None,
-        max_new_tokens: int = 128,
-        system_prompt: str | None = None,
-        check_proactive: bool = False
+        action_lists: Optional[List[List[str]]] = None,
+        max_new_tokens: int = 64,
+        system_prompt: Optional[str] = None,
+        check_proactive: bool = False,
+        temperature: float = 0.0,
     ) -> List[str]:
         """Generate a high‑level command for each (frame, action_list) pair."""
+        if not frames:
+            return []
+
+        # Choose prompt
         if check_proactive:
             sys_prompt = PROACTIVE_PROMPT
         else:
-            sys_prompt = CRAFTER_PROMPT
-        img_base64 = pil_to_data_uri(frames[0])
-        # Build per‑item conversations expected by each model
-        if self.model_type == "phi3":
-            # prompt_string = f"{MINECRAFT_PROMPT} Action list: {action_lists}"
-            # prompt_string = f"{GENERAL_PROMPT} Action list: {action_lists}"
-            prompt_string = f"{OVERCOOKED_PROMPT} Action list: {action_lists}"
-            # for acts in action_lists:
-            convs = [
-                {"role": "system", "content": "You are a helpful AI assistant."}, 
-                {
-                    "role": "user",
-                    "content": prompt_string
-                }
-            ]
-            text_batch = self.processor.apply_chat_template(
-                convs, tokenize=False, add_generation_prompt=True,
-            )
-            generation_args = { 
-                "max_new_tokens": 16, 
-                "return_full_text": False, 
-                "temperature": 0.8, 
-                "do_sample": False, 
-            } 
+            sys_prompt = OVERCOOKED_PROMPT if action_lists is not None else GENERAL_PROMPT
 
-            output = self.pipe(convs, **generation_args) 
-            outs = [output[0]['generated_text']]
-            # inputs = self.processor(
-            #     text=text_batch,
-            #     padding=True,
-            #     return_tensors="pt",
-            # ).to(self.device).to(self.dtype)
-            # gen_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
-            # outs = self.processor.batch_decode(
-            #     gen_ids[:, inputs.input_ids.shape[1]:],
-            #     skip_special_tokens=True,
-            #     clean_up_tokenization_spaces=False,
-            # )
-            if check_proactive:
-                return 'YES' in outs[0]
-            return re.findall(r"##(.*?)##", outs[0])
-
-        if self.model_type == "qwen":
-            convs = []
+        if self.model_type == "qwenvl":
+            # For Qwen2.5-VL we build chat messages with data URI images.
+            # We currently support 1 image per call (extend as needed).
+            img_base64 = pil_to_data_uri(frames[0])
             if action_lists is not None:
-                prompt_string = f"{OVERCOOKED_PROMPT} Action list: {action_lists}"
+                prompt_string = f"{sys_prompt} Action list: {action_lists}"
             else:
-                prompt_string = f"{OVERCOOKED_PROMPT}"
-            # for acts in action_lists:
-            convs.append(
+                prompt_string = sys_prompt
+
+            messages = [
                 {
                     "role": "user",
-                    "content": (
-                        [{"type": "image", "image": img_base64}]
-                    ) + [
+                    "content": [
+                        {"type": "image", "image": img_base64},
                         {"type": "text", "text": prompt_string},
                     ],
                 }
+            ]
+
+            # Prepare inputs using processor. Use qwen helper if available to normalize vision inputs.
+            if process_vision_info is not None:
+                vision_inputs, _ = process_vision_info(messages)
+            else:
+                vision_inputs = frames  # raw PIL images as best-effort fallback
+
+            text = self.processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
             )
-            text_batch = self.processor.apply_chat_template(
-                convs, tokenize=False, add_generation_prompt=True,
-            )
-            # Qwen specific image preprocessing
-            image_inputs, _ = process_vision_info(convs) if process_vision_info else (frames, None)
+
             inputs = self.processor(
-                text=text_batch,
-                images=image_inputs,
+                text=[text],
+                images=vision_inputs,
                 videos=None,
                 padding=True,
                 return_tensors="pt",
             ).to(self.device, self.dtype)
-            gen_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
-            # print(self.processor.batch_decode(
-            #     gen_ids,
-            #     skip_special_tokens=True,
-            #     clean_up_tokenization_spaces=False,
-            # ))
-            outs = self.processor.batch_decode(
-                gen_ids[:, inputs.input_ids.shape[1] :],
+
+            output_ids = self.model.generate(
+                **inputs,
+                max_new_tokens=int(max_new_tokens),
+                do_sample=temperature > 0.0,
+                temperature=float(temperature) if temperature > 0.0 else None,
+            )
+
+            # Decoder: for Qwen2.5 the processor handles special tokens & offset
+            gen_text = self.processor.batch_decode(
+                output_ids[:, inputs.input_ids.shape[1]:],
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=False,
-            )
-            # print(outs)
+            )[0]
+
             if check_proactive:
-                return 'YES' in outs[0]
-            return re.findall(r"##(.*?)##", outs[0])
+                return ["YES" if ("YES" in gen_text) else "NO"]
 
-        elif self.model_type == "llava":
-            convs = []
-            for acts in action_lists:
-                convs.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": f"{sys_prompt} Keys pressed: {', '.join(acts)}"},
-                            {"type": "image"},
-                        ],
-                    }
-                )
-            prompts = [self.processor.apply_chat_template(c, add_generation_prompt=True) for c in convs]
-            # Process each frame separately due to Llava API (no batch image support)
-            results = []
-            for frame, prompt in zip(frames, prompts):
-                inputs = self.processor(images=frame, text=prompt, return_tensors="pt").to(self.device, self.dtype)
-                gen = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-                res = self.processor.decode(gen[0][inputs.input_ids.shape[-1] :], skip_special_tokens=True)
-                results.append(res.strip())
-            return results
+            # Extract ##...## if present
+            m = re.findall(r"##(.*?)##", gen_text)
+            return [m[0] if m else gen_text.strip()]
 
-        elif self.model_type == "gemma":
-            convs = []
-            for acts in action_lists:
-                convs.append(
-                    {
-                        "role": "system",
-                        "content": [
-                            {"type": "text", "text": f"{sys_prompt}"},
-                        ],
-                    }
-                )
-                convs.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "image", "image": "<image>"},
-                            {"type": "text", "text": f"Keys pressed: {', '.join(acts)}"},
-                        ],
-                    }
-                )
-            # Gemma currently supports *one* sample at a time – loop instead of batching
-            outs: List[str] = []
-            for frame, conv in zip(frames, convs[::2]):  # take paired convs
-                inputs = self.processor.apply_chat_template(
-                    [conv, convs[convs.index(conv)+1]],
-                    add_generation_prompt=True,
-                    tokenize=True,
-                    return_dict=True,
-                    return_tensors="pt",
-                ).to(self.device, self.dtype)
-                cut = inputs["input_ids"].shape[-1]
-                gen = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-                text = self.processor.decode(gen[0][cut:], skip_special_tokens=True)
-                outs.append(text.strip())
-            return outs
+        elif self.model_type == "phi3":
+            # Text-only fallback; ignores image for now.
+            if action_lists is not None:
+                prompt_string = f"{sys_prompt} Action list: {action_lists}"
+            else:
+                prompt_string = sys_prompt
 
-        else:
+            # Minimal chat template
+            input_ids = self.tokenizer.apply_chat_template(
+                [
+                    {"role": "system", "content": "You are a helpful AI assistant."},
+                    {"role": "user", "content": prompt_string},
+                ],
+                add_generation_prompt=True,
+                return_tensors="pt",
+            ).to(self.device)
+
+            output = self.model.generate(
+                input_ids=input_ids,
+                max_new_tokens=int(max_new_tokens),
+                do_sample=temperature > 0.0,
+                temperature=float(temperature) if temperature > 0.0 else None,
+            )
+            text = self.tokenizer.decode(output[0][input_ids.shape[-1]:], skip_special_tokens=True)
+            if check_proactive:
+                return ["YES" if ("YES" in text) else "NO"]
+            m = re.findall(r"##(.*?)##", text)
+            return [m[0] if m else text.strip()]
+
+        else:  # pragma: no cover
             raise AssertionError("unreachable")

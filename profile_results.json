@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "task": "overcooked",
+    "steps": 200,
+    "runs_per_config": 3,
+    "timestamp": "2025-09-17T21:07:24.210074",
+    "scales_tested": [
+      "small",
+      "medium",
+      "large"
+    ],
+    "modes_tested": [
+      "no_vlm",
+      "online_vlm",
+      "offline_vlm"
+    ]
+  },
+  "results": [
+    {
+      "scale": "small",
+      "mode": "no_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "small",
+      "mode": "online_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "small",
+      "mode": "offline_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "medium",
+      "mode": "no_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "medium",
+      "mode": "online_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "medium",
+      "mode": "offline_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "large",
+      "mode": "no_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "large",
+      "mode": "online_vlm",
+      "error": "'agent.model_size'"
+    },
+    {
+      "scale": "large",
+      "mode": "offline_vlm",
+      "error": "'agent.model_size'"
+    }
+  ]
+}

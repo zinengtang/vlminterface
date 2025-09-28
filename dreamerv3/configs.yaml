@@ -160,6 +160,10 @@ size400m: &size400m
 minecraft:
   task: minecraft_diamond
 
+mineland:
+  task: mineland_standard
+  run: {steps: 2.6e7, train_ratio: 32}
+
 mindcraft:
   task: mindcraft_standard
   run: {steps: 2.6e7, train_ratio: 32}

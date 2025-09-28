@@ -241,6 +241,7 @@ def make_env(config, index, **overrides):
     from embodied.envs import from_gym
     import memory_maze  # noqa
   ctor = {
+      'mineland': 'embodied.envs.mineland:MineLand',
       'mindcraft': 'embodied.envs.mindcraft:MindCraft',
       'meltingpot': 'embodied.envs.meltingpot:MeltingPot',
       'virtualhome': 'embodied.envs.virtualhome:VirtualHome',

@@ -1,0 +1,856 @@
+{
+  "name": "token_numbers_all_scales",
+  "suite_params": {
+    "steps": 5,
+    "runs": 1,
+    "warmup_steps": 2
+  },
+  "variants": [
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "qwen-2b",
+      "vlm_name": "qwen2_5_vl_2b",
+      "vlm_params": "~2B",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.631135093048215,
+          "throughput": 3.06535002607059,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.475820042193,
+            "latency_ms_p95": 1630.475820042193,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.475820042193
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "small_tok8_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.06535002607059,
+        "std_throughput": 0.0,
+        "min_throughput": 3.06535002607059,
+        "max_throughput": 3.06535002607059,
+        "median_throughput": 3.06535002607059,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.06569434888660908,
+          "throughput": 76.11004728321744,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "small_tok8_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 76.11004728321744,
+        "std_throughput": 0.0,
+        "min_throughput": 76.11004728321744,
+        "max_throughput": 76.11004728321744,
+        "median_throughput": 76.11004728321744,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "qwen-2b",
+      "vlm_name": "qwen2_5_vl_2b",
+      "vlm_params": "~2B",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.6324922870844603,
+          "throughput": 3.0628016068178305,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1631.7261601798236,
+            "latency_ms_p95": 1631.7261601798236,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1631.7261601798236
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "small_tok32_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0628016068178305,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0628016068178305,
+        "max_throughput": 3.0628016068178305,
+        "median_throughput": 3.0628016068178305,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.06758564105257392,
+          "throughput": 73.9802112124759,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "small_tok32_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 73.9802112124759,
+        "std_throughput": 0.0,
+        "min_throughput": 73.9802112124759,
+        "max_throughput": 73.9802112124759,
+        "median_throughput": 73.9802112124759,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "qwen-2b",
+      "vlm_name": "qwen2_5_vl_2b",
+      "vlm_params": "~2B",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.630825416650623,
+          "throughput": 3.065932103430766,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.22430986166,
+            "latency_ms_p95": 1630.22430986166,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.22430986166
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "small_tok128_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.065932103430766,
+        "std_throughput": 0.0,
+        "min_throughput": 3.065932103430766,
+        "max_throughput": 3.065932103430766,
+        "median_throughput": 3.065932103430766,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "small",
+      "scale_name": "size50m",
+      "ctrl_params": "~50M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.10951100196689367,
+          "throughput": 45.65751303701479,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "small_tok128_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 45.65751303701479,
+        "std_throughput": 0.0,
+        "min_throughput": 45.65751303701479,
+        "max_throughput": 45.65751303701479,
+        "median_throughput": 45.65751303701479,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "qwen-7b",
+      "vlm_name": "qwen2_5_vl_7b",
+      "vlm_params": "~7B",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.630971996113658,
+          "throughput": 3.0656565605750377,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.312689114362,
+            "latency_ms_p95": 1630.312689114362,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.312689114362
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "medium_tok8_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0656565605750377,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0656565605750377,
+        "max_throughput": 3.0656565605750377,
+        "median_throughput": 3.0656565605750377,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.0681801000609994,
+          "throughput": 73.33518131429257,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "medium_tok8_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 73.33518131429257,
+        "std_throughput": 0.0,
+        "min_throughput": 73.33518131429257,
+        "max_throughput": 73.33518131429257,
+        "median_throughput": 73.33518131429257,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "qwen-7b",
+      "vlm_name": "qwen2_5_vl_7b",
+      "vlm_params": "~7B",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.6307495036162436,
+          "throughput": 3.0660748256628785,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.22407470271,
+            "latency_ms_p95": 1630.22407470271,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.22407470271
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "medium_tok32_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0660748256628785,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0660748256628785,
+        "max_throughput": 3.0660748256628785,
+        "median_throughput": 3.0660748256628785,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.06582886772230268,
+          "throughput": 75.95451924059164,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "medium_tok32_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 75.95451924059164,
+        "std_throughput": 0.0,
+        "min_throughput": 75.95451924059164,
+        "max_throughput": 75.95451924059164,
+        "median_throughput": 75.95451924059164,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "qwen-7b",
+      "vlm_name": "qwen2_5_vl_7b",
+      "vlm_params": "~7B",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.6309362407773733,
+          "throughput": 3.0657237695673425,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.2517456933856,
+            "latency_ms_p95": 1630.2517456933856,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.2517456933856
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "medium_tok128_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0657237695673425,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0657237695673425,
+        "max_throughput": 3.0657237695673425,
+        "median_throughput": 3.0657237695673425,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "medium",
+      "scale_name": "size200m",
+      "ctrl_params": "~200M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.09049019077792764,
+          "throughput": 55.25460778694258,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "medium_tok128_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 55.25460778694258,
+        "std_throughput": 0.0,
+        "min_throughput": 55.25460778694258,
+        "max_throughput": 55.25460778694258,
+        "median_throughput": 55.25460778694258,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "qwen-72b",
+      "vlm_name": "qwen2_5_vl_72b",
+      "vlm_params": "~72B",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.6310017979703844,
+          "throughput": 3.0656005445377135,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.279625300318,
+            "latency_ms_p95": 1630.279625300318,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.279625300318
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "large_tok8_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0656005445377135,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0656005445377135,
+        "max_throughput": 3.0656005445377135,
+        "median_throughput": 3.0656005445377135,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 8,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.1220453199930489,
+          "throughput": 40.96838781105883,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "large_tok8_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 40.96838781105883,
+        "std_throughput": 0.0,
+        "min_throughput": 40.96838781105883,
+        "max_throughput": 40.96838781105883,
+        "median_throughput": 40.96838781105883,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "qwen-72b",
+      "vlm_name": "qwen2_5_vl_72b",
+      "vlm_params": "~72B",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.631066009402275,
+          "throughput": 3.065479858679854,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.2636479958892,
+            "latency_ms_p95": 1630.2636479958892,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.2636479958892
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "large_tok32_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.065479858679854,
+        "std_throughput": 0.0,
+        "min_throughput": 3.065479858679854,
+        "max_throughput": 3.065479858679854,
+        "median_throughput": 3.065479858679854,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 32,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.13131926208734512,
+          "throughput": 38.075145416780686,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "large_tok32_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 38.075145416780686,
+        "std_throughput": 0.0,
+        "min_throughput": 38.075145416780686,
+        "max_throughput": 38.075145416780686,
+        "median_throughput": 38.075145416780686,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "qwen-72b",
+      "vlm_name": "qwen2_5_vl_72b",
+      "vlm_params": "~72B",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 1.6310169082134962,
+          "throughput": 3.0655721438698365,
+          "steps": 5,
+          "status": "success",
+          "vlm_stub": {
+            "calls": 1,
+            "latency_ms_mean": 1630.2240593358874,
+            "latency_ms_p95": 1630.2240593358874,
+            "samples": [
+              {
+                "prompt": "[obs@t=0] goal: serve onion soup; status: N/A",
+                "plan": "[plan #0] step-left; pickup-onion; go-stove",
+                "latency_ms": 1630.2240593358874
+              }
+            ]
+          }
+        }
+      ],
+      "tag": "large_tok128_with_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 3.0655721438698365,
+        "std_throughput": 0.0,
+        "min_throughput": 3.0655721438698365,
+        "max_throughput": 3.0655721438698365,
+        "median_throughput": 3.0655721438698365,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    },
+    {
+      "scale": "large",
+      "scale_name": "size400m",
+      "ctrl_params": "~400M",
+      "vlm_key": "none",
+      "vlm_name": "no_vlm",
+      "vlm_params": "0",
+      "eval": {
+        "instruction_token_number": 128,
+        "planning_mode": "online",
+        "num_agents": null,
+        "comm_mode": null,
+        "comm_frequency": null,
+        "comm_leader": null
+      },
+      "runs": [
+        {
+          "run_idx": 0,
+          "total_time": 0.07680019875988364,
+          "throughput": 65.1039981762617,
+          "steps": 5,
+          "status": "success"
+        }
+      ],
+      "tag": "large_tok128_no_vlm",
+      "benchmark_params": {
+        "steps": 5,
+        "runs": 1,
+        "warmup_steps": 2
+      },
+      "stats": {
+        "mean_throughput": 65.1039981762617,
+        "std_throughput": 0.0,
+        "min_throughput": 65.1039981762617,
+        "max_throughput": 65.1039981762617,
+        "median_throughput": 65.1039981762617,
+        "successful_runs": 1,
+        "failed_runs": 0,
+        "cv": 0.0
+      }
+    }
+  ]
+}
