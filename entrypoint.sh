@@ -28,8 +28,8 @@ export XLA_FLAGS="--xla_gpu_autotune_level=0"
 # xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/mineland_test.sh
 # xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/minecraft_blueprint.sh
 # xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/app.sh
-xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/profile.sh
-# xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/overcooked.sh
+# xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/profile.sh
+xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/overcooked.sh
 # xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/crafter_vlm.sh
 # xvfb-run -a -s '-screen 0 1024x768x24 -ac +extension GLX +render -noreset' "$@" bash scripts/meltingpot.sh
 # bash scripts/minecraft.sh

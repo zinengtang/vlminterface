@@ -104,7 +104,7 @@ class VLMWrapper:
 
     def __init__(
         self,
-        model_type: str = "qwenvl",
+        model_type: str = "phi3",
         model_id: Optional[str] = None,
         device: int | str = 0,
         dtype: torch.dtype = torch.bfloat16,

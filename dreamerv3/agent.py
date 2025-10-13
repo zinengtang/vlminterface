@@ -125,7 +125,7 @@ class Agent(embodied.jax.Agent):
     stop_space = elements.Space(np.int32, (), 0, 2)
     self.stop = embodied.jax.MLPHead(stop_space, **stop_cfg, name='stop')
     self.modules.append(self.stop)
-    self.config.setdefault('stop_threshold', 0.65)  # for hard gating if you want
+    self.config.setdefault('stop_threshold', 0.5)  # for hard gating if you want
 
     self.null = NullVec(name='instr_null')
     self.modules.append(self.null)  # so its params get optimized
@@ -219,10 +219,11 @@ class Agent(embodied.jax.Agent):
     stop_inp = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
     p_stop = self.stop(stop_inp, 1).prob(1)  # [B]
     # Learned null vector (shared across batch/time at eval)
-    null_vec = self.null(instr)
-    gate = (1.0 - sg(p_stop))[..., None]  # [B,1]
-    blended = gate * instr + (1.0 - gate) * nn.cast(null_vec)  # [B,D]
-    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended)], -1)
+    # null_vec = self.null(instr)
+    # gate = (1.0 - sg(p_stop))[..., None]  # [B,1]
+    # blended = gate * instr + (1.0 - gate) * nn.cast(null_vec)  # [B,D]
+    # feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended)], -1)
+    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
 
     policy = self.pol(feat_vec, bdims=1)
     # act = sample(policy)
@@ -279,6 +280,10 @@ class Agent(embodied.jax.Agent):
         # Original behavior - just sample from policy
         act = sample(policy)
     
+    p_stop = self.stop(jnp.concatenate([feat_vec_base, nn.cast(instr)], -1), 1).prob(1)
+    act = dict(act)
+    act['_stop_prev'] = (p_stop > 0.5).astype(jnp.float32)  # or use a cfg threshold
+    
     out['finite'] = elements.tree.flatdict(jax.tree.map(
         lambda x: jnp.isfinite(x).all(range(1, x.ndim)),
         dict(obs=obs, carry=carry, tokens=tokens, feat=feat, act=act)))
@@ -324,10 +329,32 @@ class Agent(embodied.jax.Agent):
     metrics = {}
 
     # World model
+    # enc_carry, enc_entries, tokens = self.enc(
+    #     enc_carry, obs, reset, training)
     enc_carry, enc_entries, tokens = self.enc(
-        enc_carry, obs, reset, training)
+       enc_carry, obs, reset, training)
+
+    # Build shifted stop token (prev) from BC window ends; 1 at last step, else 0; shift by 1
+    demo_ids = obs.get('action_ids', None)
+    prevact_aug = prevact
+    if demo_ids is not None:
+      mask_bool = (demo_ids != 0)
+      if mask_bool.ndim == 3:
+        mask_bool = mask_bool.any(axis=-1)
+      next_mask_bool = jnp.concatenate(
+          [mask_bool[:, 1:], jnp.zeros_like(mask_bool[:, :1])], 1)
+      stop_label = (mask_bool & (~next_mask_bool)).astype(jnp.float32)
+      stop_prev = jnp.concatenate(
+          [jnp.zeros_like(stop_label[:, :1]), stop_label[:, :-1]], 1)
+      prevact_aug = dict(prevact)
+      prevact_aug['_stop_prev'] = stop_prev
+
     dyn_carry, dyn_entries, los, repfeat, mets = self.dyn.loss(
-        dyn_carry, tokens, prevact, reset, training)
+        dyn_carry, tokens, prevact_aug, reset, training)
+
+
+    # dyn_carry, dyn_entries, los, repfeat, mets = self.dyn.loss(
+    #     dyn_carry, tokens, prevact, reset, training)
     losses.update(los)
     metrics.update(mets)
     dec_carry, dec_entries, recons = self.dec(
@@ -349,20 +376,25 @@ class Agent(embodied.jax.Agent):
         [mask_bool[:, 1:], jnp.zeros_like(mask_bool[:, :1])], 1  # (B,T) bool
     )
     stop_label = (mask_bool & (~next_mask_bool)).astype(jnp.float32)   # 1 at last BC step
-    stop_weight = mask_f32
+    # stop_weight = mask_f32
+    stop_weight = stop_label
     if stop_label.ndim > 2:
       stop_label = stop_label[:, :, 0]
       stop_weight = stop_weight[:, :, 0]
+    # stop_inp_train = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)  # in loss()
+    # stop_pred = self.stop(stop_inp_train, 2)
+    # losses['stop'] = stop_weight * stop_pred.loss(stop_label)
+
+    # p_stop_train = stop_pred.prob(1)                # [B,T]
+    # null_vec = self.null(instr)
+    # gate = (1.0 - sg(p_stop_train))[..., None]
+    # blended_instr = gate * instr + (1.0 - gate) * nn.cast(null_vec)
+    # feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended_instr)], -1)
     stop_inp_train = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)  # in loss()
     stop_pred = self.stop(stop_inp_train, 2)
     losses['stop'] = stop_weight * stop_pred.loss(stop_label)
-
-    p_stop_train = stop_pred.prob(1)                # [B,T]
-    null_vec = self.null(instr)
-    gate = (1.0 - sg(p_stop_train))[..., None]
-    blended_instr = gate * instr + (1.0 - gate) * nn.cast(null_vec)
-    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended_instr)], -1)
-
+    # Directly use instruction embeddings during the action sequence; null otherwise.
+    feat_vec = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
 
     action_policy = self.pol(feat_vec, 2)['action']
     if 'Categorical' in action_policy.__class__.__name__:
@@ -401,11 +433,12 @@ class Agent(embodied.jax.Agent):
       f = self.feat2tensor(feat)                          # (B*K, F)
       stop_inp = jnp.concatenate([f, nn.cast(instr_flat)], -1)   # [B*K,F+D]
       p_stop_im = self.stop(stop_inp, 1).prob(1)                 # [B*K]
-      null_flat = self.null(instr_flat)
-      gate = (1.0 - sg(p_stop_im))[..., None]                          # [B*K,1]
-      blended = gate * instr_flat + (1.0 - gate) * nn.cast(null_flat)  # [B*K,D]
-      f = jnp.concatenate([f, nn.cast(blended)], -1)
-      return sample(self.pol(f, 1))
+      f = jnp.concatenate([f, nn.cast(instr_flat)], -1)
+      act = sample(self.pol(f, 1))
+      # Feed previous-step stop (hard 0/1) into RSSM
+      act = dict(act)
+      act['_stop_prev'] = (p_stop_im > 0.5).astype(jnp.float32)
+      return act
     
     # policyfn = lambda feat: sample(self.pol(self.feat2tensor(feat), 1))
     _, imgfeat, imgprevact = self.dyn.imagine(starts, policyfn, H, training)
@@ -420,13 +453,7 @@ class Agent(embodied.jax.Agent):
     inp_wm = self.feat2tensor(imgfeat)
 
     instr_time = jnp.repeat(instr_flat[:, None, :], inp_wm.shape[1], axis=1)  # [B*K, H+1, D]
-    stop_inp_time = jnp.concatenate([inp_wm, nn.cast(instr_time)], -1)       # [B*K,H+1,F+D]
-    p_stop_time = self.stop(stop_inp_time, 2).prob(1)                         # [B*K, H+1]
-    # same null, tiled across time
-    null_time = jnp.repeat(self.null(instr_flat)[:, None, :], inp_wm.shape[1], axis=1)  # [B*K,H+1,D]
-    gate_time = (1.0 - sg(p_stop_time))[..., None]
-    blended_time = gate_time * instr_time + (1.0 - gate_time) * nn.cast(null_time)
-    inp = jnp.concatenate([inp_wm, nn.cast(blended_time)], -1)                # [B*K,H+1,F+D]
+    inp = jnp.concatenate([inp_wm, nn.cast(instr_time)], -1)                     # [B*K,H+1,F+D]
 
 
     los, imgloss_out, mets = imag_loss(
@@ -464,10 +491,7 @@ class Agent(embodied.jax.Agent):
       # inp_wm = self.feat2tensor(feat)
 
       p_stop_train = stop_pred.prob(1)[:, -K:]
-      gate = (1.0 - sg(p_stop_train))[..., None]
-      nullK = self.null(instrK)
-      blended_instr = gate * instrK + (1.0 - gate) * nn.cast(nullK)
-      inp_aug = jnp.concatenate([self.feat2tensor(feat), nn.cast(blended_instr)], -1)
+      inp_aug = jnp.concatenate([self.feat2tensor(feat), nn.cast(instrK)], -1)
       los, reploss_out, mets = repl_loss(
           last, term, rew, boot,
           self.val(inp_aug, 2),
@@ -681,11 +705,18 @@ def imag_loss(
   metrics['ret_min'] = ret_normed.min()
   metrics['ret_max'] = ret_normed.max()
   metrics['ret_rate'] = (jnp.abs(ret_normed) >= 1.0).mean()
-  for k in act:
+  # for k in act:
+  #   metrics[f'ent/{k}'] = ents[k].mean()
+  #   if hasattr(policy[k], 'minent'):
+  #     lo, hi = policy[k].minent, policy[k].maxent
+  #     metrics[f'rand/{k}'] = (ents[k].mean() - lo) / (hi - lo)
+
+  for k, head in policy.items():
     metrics[f'ent/{k}'] = ents[k].mean()
-    if hasattr(policy[k], 'minent'):
-      lo, hi = policy[k].minent, policy[k].maxent
+    if hasattr(head, 'minent'):
+      lo, hi = head.minent, head.maxent
       metrics[f'rand/{k}'] = (ents[k].mean() - lo) / (hi - lo)
+
 
   outs = {}
   outs['ret'] = ret

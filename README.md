@@ -1,121 +1,220 @@
-# Mastering Diverse Domains through World Models
+# Async Planner–Controller Inference (DreamerV3 + VLM)
 
-A reimplementation of [DreamerV3][paper], a scalable and general reinforcement
-learning algorithm that masters a wide range of applications with fixed
-hyperparameters.
+Asynchronous inference loop that pairs a **DreamerV3-based controller** with a **vision-language planner (VLM)**.  
+The controller runs every env step; the planner runs in the background and injects short instructions when the controller’s **STOP** head indicates completion (or when no instruction is active).
 
-![DreamerV3 Tasks](https://user-images.githubusercontent.com/2111293/217647148-cbc522e2-61ad-4553-8e14-1ecdc8d9438b.gif)
+- Controller/Env built via `dreamerv3.main.make_agent` / `dreamerv3.main.make_env`
+- Planner via `VLMInference` (e.g., Qwen2.5-VL)
+- Instruction injection via `web.utils.ManualInstrWrapper`
+- STOP head trained with CE at action-sequence end; STOP decisions are also fed back to the RSSM as a shifted `stop_prev` channel (internal)
 
-If you find this code useful, please reference in your paper:
+---
 
-```
-@article{hafner2023dreamerv3,
-  title={Mastering Diverse Domains through World Models},
-  author={Hafner, Danijar and Pasukonis, Jurgis and Ba, Jimmy and Lillicrap, Timothy},
-  journal={arXiv preprint arXiv:2301.04104},
-  year={2023}
-}
-```
+## Contents
 
-To learn more:
+- `async_inference.py` — main async inference loop (controller + planner)
+- `dreamerv3/main` — main training loop, etc.  
 
-- [Research paper][paper]
-- [Project website][website]
-- [Twitter summary][tweet]
+---
 
-## DreamerV3
+## Quick Start
 
-DreamerV3 learns a world model from experiences and uses it to train an actor
-critic policy from imagined trajectories. The world model encodes sensory
-inputs into categorical representations and predicts future representations and
-rewards given actions.
+You can run with **Docker** (recommended for consistent GPU/JAX stacks) or **Conda + pip**.
 
-![DreamerV3 Method Diagram](https://user-images.githubusercontent.com/2111293/217355673-4abc0ce5-1a4b-4366-a08d-64754289d659.png)
+### Prerequisites
 
-DreamerV3 masters a wide range of domains with a fixed set of hyperparameters,
-outperforming specialized methods. Removing the need for tuning reduces the
-amount of expert knowledge and computational resources needed to apply
-reinforcement learning.
+- **GPU (recommended):** NVIDIA GPU + recent driver
+- **CPU-only:** supported but slower for Dreamer
+- **Hugging Face:** optional login if your chosen VLM requires auth  
+  ```bash
+  huggingface-cli login   # if needed for gated models
+Option A: Docker (GPU)
+Create a Dockerfile (or copy into your repo):
 
-![DreamerV3 Benchmark Scores](https://github.com/danijar/dreamerv3/assets/2111293/0fe8f1cf-6970-41ea-9efc-e2e2477e7861)
+dockerfile
+Copy code
+# Dockerfile
+FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
 
-Due to its robustness, DreamerV3 shows favorable scaling properties. Notably,
-using larger models consistently increases not only its final performance but
-also its data-efficiency. Increasing the number of gradient steps further
-increases data efficiency.
+# System deps
+RUN apt-get update && apt-get install -y \
+    python3 python3-pip python3-venv git ffmpeg libgl1 libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
 
-![DreamerV3 Scaling Behavior](https://user-images.githubusercontent.com/2111293/217356063-0cf06b17-89f0-4d5f-85a9-b583438c98dd.png)
+# Use Python 3 as 'python'
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-# Instructions
+# Workdir
+WORKDIR /app
+COPY . /app
 
-The code has been tested on Linux and Mac and requires Python 3.11+.
+# Python deps (minimal; adjust if you keep a requirements.txt)
+# JAX CUDA wheels (CUDA 12) are hosted on Google Storage.
+RUN pip install --upgrade pip && \
+    pip install "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
+    pip install flax==0.8.* numpy==1.* pillow==10.* einops==0.7.* \
+               transformers==4.* accelerate==0.* \
+               dm-env==1.* gymnasium==0.* \
+               tqdm pyyaml && \
+    pip install -e .
 
-## Docker
+# Optional: cache HF models inside container
+ENV HF_HOME=/root/.cache/huggingface
 
-You can either use the provided `Dockerfile` that contains instructions or
-follow the manual instructions below.
+CMD ["/bin/bash"]
+Build & run:
 
-## Manual
+docker build -t async-vlm .
+# Allow GPU access:
+docker run --gpus all -it --rm \
+  -v $PWD:/app \
+  -e CUDA_VISIBLE_DEVICES=0 \
+  async-vlm
+Inside the container, run async inference:
 
-Install [JAX][jax] and then the other dependencies:
 
-```sh
-pip install -U -r requirements.txt
-```
+python async_inference.py \
+  --task overcooked_l2_simple \
+  --from_checkpoint /app/checkpoints/agent_ckpt \
+  --model_type qwenvl \
+  --model_id Qwen/Qwen2.5-VL-7B-Instruct \
+  --max_new_tokens 64 \
+  --temperature 0.4 \
+  --stop_threshold 0.65
+Option B: Conda + pip (GPU or CPU)
+Create environment:
 
-Training script:
+conda create -y -n async-vlm python=3.11
+conda activate async-vlm
+pip install --upgrade pip
+Install dependencies:
 
-```sh
-python dreamerv3/main.py \
-  --logdir ~/logdir/dreamer/{timestamp} \
-  --configs crafter \
-  --run.train_ratio 32
-```
+GPU (CUDA 12):
 
-To reproduce results, train on the desired task using the corresponding config,
-such as `--configs atari --task atari_pong`.
+bash
+Copy code
+pip install "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+CPU-only:
 
-View results:
 
-```sh
-pip install -U scope
-python -m scope.viewer --basedir ~/logdir --port 8000
-```
+pip install jax  # CPU wheel
+Core libraries:
 
-Scalar metrics are also writting as JSONL files.
+pip install flax==0.8.* numpy==1.* pillow==10.* einops==0.7.* \
+            transformers==4.* accelerate==0.* \
+            dm-env==1.* gymnasium==0.* \
+            tqdm pyyaml
+This repo (editable mode recommended during dev):
 
-# Tips
 
-- All config options are listed in `dreamerv3/configs.yaml` and you can
-  override them as flags from the command line.
-- The `debug` config block reduces the network size, batch size, duration
-  between logs, and so on for fast debugging (but does not learn a good model).
-- By default, the code tries to run on GPU. You can switch to CPU or TPU using
-  the `--jax.platform cpu` flag.
-- You can use multiple config blocks that will override defaults in the
-  order they are specified, for example `--configs crafter size50m`.
-- By default, metrics are printed to the terminal, appended to a JSON lines
-  file, and written as Scope summaries. Other outputs like WandB and
-  TensorBoard can be enabled in the training script.
-- If you get a `Too many leaves for PyTreeDef` error, it means you're
-  reloading a checkpoint that is not compatible with the current config. This
-  often happens when reusing an old logdir by accident.
-- If you are getting CUDA errors, scroll up because the cause is often just an
-  error that happened earlier, such as out of memory or incompatible JAX and
-  CUDA versions. Try `--batch_size 1` to rule out an out of memory error.
-- Many environments are included, some of which require installing additional
-  packages. See the `Dockerfile` for reference.
-- To continue stopped training runs, simply run the same command line again and
-  make sure that the `--logdir` points to the same directory.
+pip install -e .
+Run:
 
-# Disclaimer
+CUDA_VISIBLE_DEVICES=0 \
+python async_inference.py \
+  --task overcooked_l2_simple \
+  --from_checkpoint /path/to/checkpoint \
+  --model_type qwenvl \
+  --model_id Qwen/Qwen2.5-VL-7B-Instruct \
+  --max_new_tokens 64 \
+  --temperature 0.4 \
+  --stop_threshold 0.65
+Command Line Arguments
+Flag	Type	Default	Description
+--task	str	overcooked_l2_simple	Env/task name; used by build_config
+--from_checkpoint	str	required	Dreamer checkpoint dir or bundle file
+--logdir	str	~/logdir/async_infer_{time}	Minimal logs/checkpoints location
+--stop_threshold	float	0.65	Threshold to clear active instruction via wrapper
+--max_steps	int	0	Stop after N steps; 0 = unlimited
+--model_type	str	qwenvl	Planner family: qwenvl, phi3
+--model_id	str	Qwen/Qwen2.5-VL-7B-Instruct	HF model id for the VLM
+--max_new_tokens	int	64	Token budget per instruction
+--temperature	float	0.2	Sampling temperature for VLM
+--proactive_check	flag	off	Ask VLM if new instruction is needed before generating
 
-This repository contains a reimplementation of DreamerV3 based on the open
-source DreamerV2 code base. It is unrelated to Google or DeepMind. The
-implementation has been tested to reproduce the official results on a range of
-environments.
+How It Works (High-Level)
+Controller loop (agent.policy(..., return_stop_token=True)):
 
-[jax]: https://github.com/google/jax#pip-installation-gpu-cuda
-[paper]: https://arxiv.org/pdf/2301.04104v1.pdf
-[website]: https://danijar.com/dreamerv3
-[tweet]: https://twitter.com/danijarh/status/1613161946223677441
+Produces action and p_stop each step.
+
+When p_stop ≥ stop_threshold, the wrapper clears the current instruction.
+
+If no active instruction, the controller signals the planner task.
+
+Planner loop (VLMInference):
+
+Waits for a signal, reads the latest frames, generates a short instruction, and injects it via ManualInstrWrapper.
+
+STOP head design:
+
+Trained via cross-entropy only at the end of action sequences.
+
+No mixing/gating of instruction embeddings; the policy/value/dream directly consume the instruction embedding (or a learned null placeholder when inactive).
+
+The STOP predictions are fed back as a shifted binary channel (stop_prev) into the RSSM’s action embedding path to inform future dynamics.
+
+Checkpoints
+Place your trained Dreamer agent checkpoint where accessible (dir or .npz/.jsonl bundle).
+
+Pass the path with --from_checkpoint.
+
+Loading is done via elements.Checkpoint and keys=["agent"].
+
+Environment Assumptions
+The env observation dict should include (optionally) an image key (HxWxC, uint8 or [0,1] float).
+This is used only for planner context frames.
+
+ManualInstrWrapper injects/replaces instruction tokens in the env’s fields.
+
+If your env returns Gym-style tuples (obs, reward, done, info), the script handles it.
+
+Tips & Troubleshooting
+Event loop errors: We create asyncio tasks inside the running loop; the script should not raise “no running event loop”.
+
+Relative import: vlm_infer is imported with a fallback so you can run python async_inference.py directly.
+
+CUDA/JAX: If JAX can’t find CUDA, ensure your driver is new enough and you installed the matching jax[cuda12_pip] wheel.
+
+VLM auth: Some HF models require login or acceptance; use huggingface-cli login.
+
+Throughput: For slow planners, lower --max_new_tokens, increase --temperature, or reduce frame history.
+
+No frames: If your env doesn’t provide image, planner will skip until frames are seen (you can modify to use other obs).
+
+Minimal Requirements (summary)
+If you prefer a requirements.txt, start with:
+
+makefile
+Copy code
+flax==0.8.*
+numpy==1.*
+pillow==10.*
+einops==0.7.*
+transformers==4.*
+accelerate==0.*
+dm-env==1.*
+gymnasium==0.*
+tqdm
+pyyaml
+# JAX wheels vary by platform — install separately:
+# CPU: pip install jax
+# GPU (CUDA 12): pip install "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+Example
+
+# GPU 0, Overcooked L2, Qwen2.5-VL, 64 token cap
+CUDA_VISIBLE_DEVICES=0 \
+python async_inference.py \
+  --task overcooked_l2_simple \
+  --from_checkpoint ./checkpoints/overcooked_agent \
+  --model_type qwenvl \
+  --model_id Qwen/Qwen2.5-VL-7B-Instruct \
+  --max_new_tokens 64 \
+  --temperature 0.4 \
+  --stop_threshold 0.65 \
+  --max_steps 10000
+You’ll see controller logs like:
+
+[controller] step=120  ep=0  p_stop=0.71  reward=0.50  has_instr=False
+[planner] new instruction: chop onion and place on plate near stove
+License
+This code is provided for research purposes. Check the licenses of any third-party models (e.g., Qwen) before use.

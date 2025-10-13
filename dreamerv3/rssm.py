@@ -75,9 +75,19 @@ class RSSM(nj.Module):
   def _observe(self, carry, tokens, action, reset, training):
     deter, stoch, action = nn.mask(
         (carry['deter'], carry['stoch'], action), ~reset)
-    action = nn.DictConcat(self.act_space, 1)(action)
-    action = nn.mask(action, ~reset)
-    deter = self._core(deter, stoch, action)
+    # action = nn.DictConcat(self.act_space, 1)(action)
+    # action = nn.mask(action, ~reset)
+    # deter = self._core(deter, stoch, action)
+    action_vec = nn.DictConcat(self.act_space, 1)(action)
+    action_vec = nn.mask(action_vec, ~reset)
+    # Optionally append shifted stop token channel if provided
+    print(action)
+    if isinstance(action, dict) and ('_stop_prev' in action):
+      stop_prev = nn.cast(action['_stop_prev'])
+      if stop_prev.ndim < action_vec.ndim:
+        stop_prev = stop_prev.reshape(action_vec.shape[:-1] + (1,))
+      action_vec = jnp.concatenate([action_vec, stop_prev], -1)
+    deter = self._core(deter, stoch, action_vec)
     tokens = tokens.reshape((*deter.shape[:-1], -1))
     x = tokens if self.absolute else jnp.concatenate([deter, tokens], -1)
     for i in range(self.obslayers):
@@ -95,6 +105,11 @@ class RSSM(nj.Module):
     if single:
       action = policy(sg(carry)) if callable(policy) else policy
       actemb = nn.DictConcat(self.act_space, 1)(action)
+      if isinstance(action, dict) and ('_stop_prev' in action):
+        sp = nn.cast(action['_stop_prev'])
+        if sp.ndim < actemb.ndim:
+          sp = sp.reshape(actemb.shape[:-1] + (1,))
+        actemb = jnp.concatenate([actemb, sp], -1)
       deter = self._core(carry['deter'], carry['stoch'], actemb)
       logit = self._prior(deter)
       stoch = nn.cast(self._dist(logit).sample(seed=nj.seed()))
