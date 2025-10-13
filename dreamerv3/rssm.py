@@ -36,6 +36,18 @@ class RSSM(nj.Module):
     self.act_space = act_space
     self.kw = kw
 
+  def _append_stop_prev(self, actvec, action):
+    """Always append a 1-d stop_prev column to the action embedding."""
+    # If the caller provided action['_stop_prev'], use it; else zeros.
+    if isinstance(action, dict) and ('_stop_prev' in action):
+      sp = nn.cast(action['_stop_prev'])
+      # reshape to match [..., 1]
+      if sp.ndim < actvec.ndim:
+        sp = sp.reshape(actvec.shape[:-1] + (1,))
+    else:
+      sp = jnp.zeros(actvec.shape[:-1] + (1,), actvec.dtype)
+    return jnp.concatenate([actvec, sp], -1)
+
   @property
   def entry_space(self):
     return dict(
@@ -80,13 +92,14 @@ class RSSM(nj.Module):
     # deter = self._core(deter, stoch, action)
     action_vec = nn.DictConcat(self.act_space, 1)(action)
     action_vec = nn.mask(action_vec, ~reset)
+    action_vec = self._append_stop_prev(action_vec, action)
     # Optionally append shifted stop token channel if provided
-    print(action)
-    if isinstance(action, dict) and ('_stop_prev' in action):
-      stop_prev = nn.cast(action['_stop_prev'])
-      if stop_prev.ndim < action_vec.ndim:
-        stop_prev = stop_prev.reshape(action_vec.shape[:-1] + (1,))
-      action_vec = jnp.concatenate([action_vec, stop_prev], -1)
+    # print(action)
+    # if isinstance(action, dict) and ('_stop_prev' in action):
+    #   stop_prev = nn.cast(action['_stop_prev'])
+    #   if stop_prev.ndim < action_vec.ndim:
+    #     stop_prev = stop_prev.reshape(action_vec.shape[:-1] + (1,))
+    #   action_vec = jnp.concatenate([action_vec, stop_prev], -1)
     deter = self._core(deter, stoch, action_vec)
     tokens = tokens.reshape((*deter.shape[:-1], -1))
     x = tokens if self.absolute else jnp.concatenate([deter, tokens], -1)
@@ -105,11 +118,12 @@ class RSSM(nj.Module):
     if single:
       action = policy(sg(carry)) if callable(policy) else policy
       actemb = nn.DictConcat(self.act_space, 1)(action)
-      if isinstance(action, dict) and ('_stop_prev' in action):
-        sp = nn.cast(action['_stop_prev'])
-        if sp.ndim < actemb.ndim:
-          sp = sp.reshape(actemb.shape[:-1] + (1,))
-        actemb = jnp.concatenate([actemb, sp], -1)
+      actemb = self._append_stop_prev(actemb, action)
+      # if isinstance(action, dict) and ('_stop_prev' in action):
+      #   sp = nn.cast(action['_stop_prev'])
+      #   if sp.ndim < actemb.ndim:
+      #     sp = sp.reshape(actemb.shape[:-1] + (1,))
+      #   actemb = jnp.concatenate([actemb, sp], -1)
       deter = self._core(carry['deter'], carry['stoch'], actemb)
       logit = self._prior(deter)
       stoch = nn.cast(self._dist(logit).sample(seed=nj.seed()))

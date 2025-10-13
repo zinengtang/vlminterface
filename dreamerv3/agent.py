@@ -25,33 +25,9 @@ isimage = lambda s: s.dtype == np.uint8 and len(s.shape) == 3
 
 
 @jax.jit
-def f(x):
+def print_f(x):
   jax.debug.print("🤯 {x} 🤯", x=x)
   return x
-
-class NullVec(nj.Module):
-  def __call__(self, like: jnp.ndarray):
-    """Return a learned null vector broadcast to like[..., D]."""
-    D = like.shape[-1]
-    zeros = jnp.zeros((*like.shape[:-1], 1), like.dtype)  # acts as a constant
-    # Linear(1→D) on zeros => output == bias (shared vector), broadcast over batch/time
-    return self.sub('lin', nn.Linear, D)(zeros)            # [..., D]
-
-class AlignHead(nj.Module):
-  def __init__(self, dim=128):
-    self.dim = dim
-
-  def __call__(self, state_vec, instr_vec):
-    # Project both to the same dim; params live under this module.
-    z_s = self.sub('state_proj', nn.Linear, self.dim)(nn.cast(state_vec))
-    z_i = self.sub('instr_proj', nn.Linear, self.dim)(nn.cast(instr_vec))
-    return z_s, z_i
-
-def _l2norm(x, eps=1e-8):
-  x32 = x.astype(jnp.float32)
-  n = jnp.linalg.norm(x32, ord=2, axis=-1, keepdims=True)
-  x32 = x32 / jnp.maximum(n, eps)
-  return x32.astype(x.dtype)
 
 class Agent(embodied.jax.Agent):
 
@@ -127,8 +103,8 @@ class Agent(embodied.jax.Agent):
     self.modules.append(self.stop)
     self.config.setdefault('stop_threshold', 0.5)  # for hard gating if you want
 
-    self.null = NullVec(name='instr_null')
-    self.modules.append(self.null)  # so its params get optimized
+    # self.null = NullVec(name='instr_null')
+    # self.modules.append(self.null)  # so its params get optimized
 
     self.opt = embodied.jax.Optimizer(
         self.modules, self._make_opt(**config.opt), summary_depth=1,
@@ -392,6 +368,7 @@ class Agent(embodied.jax.Agent):
     # feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended_instr)], -1)
     stop_inp_train = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)  # in loss()
     stop_pred = self.stop(stop_inp_train, 2)
+    print(stop_label.shape)
     losses['stop'] = stop_weight * stop_pred.loss(stop_label)
     # Directly use instruction embeddings during the action sequence; null otherwise.
     feat_vec = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
