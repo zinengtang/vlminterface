@@ -38,7 +38,7 @@ class Agent(embodied.jax.Agent):
       r"--- |___/|_| \___\__,_|_|_|_\___|_|  \_/ |___/ ---",
   ]
 
-  def __init__(self, obs_space, act_space, config, text_encoder=None):
+  def __init__(self, obs_space, act_space, config, text_encoder=None, vision_encoder=None):
     self.obs_space = obs_space
     self.act_space = act_space
     self.config = config
@@ -48,7 +48,7 @@ class Agent(embodied.jax.Agent):
     dec_space = {k: v for k, v in obs_space.items() if k not in exclude}
     self.enc = {
         'simple': rssm.Encoder,
-    }[config.enc.typ](enc_space, text_encoder=text_encoder, **config.enc[config.enc.typ], name='enc')
+    }[config.enc.typ](enc_space, text_encoder=text_encoder, vision_encoder=vision_encoder, **config.enc[config.enc.typ], name='enc')
     self.dyn = {
         'rssm': rssm.RSSM,
     }[config.dyn.typ](act_space, **config.dyn[config.dyn.typ], name='dyn')
@@ -148,33 +148,6 @@ class Agent(embodied.jax.Agent):
   def init_report(self, batch_size):
     return self.init_policy(batch_size)
   
-  def sample_with_vlm(self, captions, batch_size, time, dtype) -> jnp.ndarray:
-    """
-    Given a list of PIL frames and corresponding low-level action strings,
-    returns a JAX array of shape (batch, hidden_dim) as the frozen text embedding.
-    """
-    if captions is None:
-        captions = ['dummy'] * batch_size
-     # 2. tokenize
-    inputs = self.tokenizer(
-        captions,
-        return_tensors="jax",
-        padding="max_length",
-        truncation=True,
-        max_length=32,
-    )
-    # 3. encode (frozen)
-    outputs = self.text_encoder(
-        **inputs,
-        params=self.text_encoder.params,
-        train=False,
-    )
-    # shape: (batch, seq_len, hidden_dim)
-    hidden = outputs.last_hidden_state
-    # 4. mean-pool across sequence length
-    pooled = jnp.mean(hidden, axis=1).astype(dtype)
-    return pooled  # (batch, hidden_dim)
-
   def policy(self, carry, obs, mode='train', return_stop_token=False):
     
     (enc_carry, dyn_carry, dec_carry, prevact) = carry
@@ -202,75 +175,28 @@ class Agent(embodied.jax.Agent):
     feat_vec = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)
 
     policy = self.pol(feat_vec, bdims=1)
-    # act = sample(policy)
 
-    if False:
-       # Generate uniform random actions for each action key
-        uniform_actions = {}
-        for key, space in self.act_space.items():
-            batch_shape = feat_vec.shape[:-1]  # Get batch dimensions
-            action_shape = (*batch_shape, *space.shape)  # Combine batch + action dims
-            
-            if space.discrete:
-                # For discrete actions, sample uniformly from the action range
-                # Use the space bounds directly without trying to extract concrete values
-                uniform_actions[key] = jax.random.randint(
-                    nj.seed(), 
-                    shape=action_shape, 
-                    minval=space.low, 
-                    maxval=space.high
-                )
-            else:
-                # For continuous actions, sample uniformly from the action range
-                uniform_actions[key] = jax.random.uniform(
-                    nj.seed(),
-                    shape=action_shape,
-                    minval=space.low,
-                    maxval=space.high
-                )
-        
-        # Sample from policy
-        policy_actions = sample(policy)
-        
-        # Decide whether to use uniform or policy action
-        use_uniform = jax.random.uniform(nj.seed(), shape=feat_vec.shape[:-1]) < 0.1
-        
-        # Mix uniform and policy actions
-        act = {}
-        for key in self.act_space.keys():
-            # Expand use_uniform to match action dimensions if needed
-            if len(self.act_space[key].shape) > 0:
-                use_uniform_expanded = jnp.expand_dims(use_uniform, axis=-1)
-                for _ in range(len(self.act_space[key].shape) - 1):
-                    use_uniform_expanded = jnp.expand_dims(use_uniform_expanded, axis=-1)
-            else:
-                use_uniform_expanded = use_uniform
-                
-            act[key] = jnp.where(
-                use_uniform_expanded,
-                uniform_actions[key],
-                policy_actions[key]
-            )
-
-    else:
-        # Original behavior - just sample from policy
-        act = sample(policy)
+    act_env = sample(policy)
     
     p_stop = self.stop(jnp.concatenate([feat_vec_base, nn.cast(instr)], -1), 1).prob(1)
-    act = dict(act)
-    act['_stop_prev'] = (p_stop > 0.5).astype(jnp.float32)  # or use a cfg threshold
+    thr = getattr(self.config, 'stop_threshold', 0.5)
+    act_model = dict(act_env)
+    act_model['_stop_prev'] = (p_stop >= thr).astype(jnp.float32)
+
+    # act = dict(act)
+    # act['_stop_prev'] = (p_stop > 0.5).astype(jnp.float32)  # or use a cfg threshold
     
     out['finite'] = elements.tree.flatdict(jax.tree.map(
         lambda x: jnp.isfinite(x).all(range(1, x.ndim)),
-        dict(obs=obs, carry=carry, tokens=tokens, feat=feat, act=act)))
-    carry = (enc_carry, dyn_carry,  dec_carry, act)
+        dict(obs=obs, carry=carry, tokens=tokens, feat=feat, act=act_env)))
+    carry = (enc_carry, dyn_carry,  dec_carry, act_model)
     if self.config.replay_context:
       out.update(elements.tree.flatdict(dict(
           enc=enc_entry, dyn=dyn_entry, dec=dec_entry)))
     if return_stop_token:
-      return carry, act, out, p_stop
+      return carry, act_env, out, p_stop
     else:
-      return carry, act, out
+      return carry, act_env, out
 
   def train(self, carry, data):
     carry, obs, prevact, stepid = self._apply_replay_context(carry, data)
@@ -368,7 +294,7 @@ class Agent(embodied.jax.Agent):
     # feat_vec = jnp.concatenate([feat_vec_base, nn.cast(blended_instr)], -1)
     stop_inp_train = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)  # in loss()
     stop_pred = self.stop(stop_inp_train, 2)
-    print(stop_label.shape)
+    # print(stop_label.shape)
     losses['stop'] = stop_weight * stop_pred.loss(stop_label)
     # Directly use instruction embeddings during the action sequence; null otherwise.
     feat_vec = jnp.concatenate([feat_vec_base, nn.cast(instr)], -1)

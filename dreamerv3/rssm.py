@@ -226,7 +226,7 @@ class Encoder(nj.Module):
   lang_model_name: str = 'bert-base-uncased'
   lang_trainable: bool = False   # set True if you want to finetune
 
-  def __init__(self, obs_space, text_encoder=None, **kw):
+  def __init__(self, obs_space, text_encoder=None, vision_encoder=None, **kw):
     assert all(len(s.shape) <= 3 for s in obs_space.values()), obs_space
     self.obs_space = obs_space
     exclude = {"action_ids", "action_text_ids", "instructions_ids"}
@@ -234,6 +234,7 @@ class Encoder(nj.Module):
     self.imgkeys = [k for k, s in obs_space.items() if len(s.shape) == 3]
     self.depths = tuple(self.depth * mult for mult in self.mults)
     self.kw = kw
+    self.vision = vision_encoder
     if "instructions_ids" in obs_space:
       shape = obs_space["instructions_ids"].shape  # e.g., (K, L)
       # last dim is token length L, so K is the second-to-last
@@ -339,8 +340,83 @@ class Encoder(nj.Module):
       emb_bt = emb_cat.reshape((*bshape, emb_cat.shape[-1]))     # [..., K*units]
       outs.append(emb_cat)                                       # shape [-1, K*units]
 
-
     if self.imgkeys:
+      # Unpack the vision backbones
+      clip_model, clip_params_np, dino_model, dino_params_np = self.vision
+
+      # Configuration
+      img_size  = getattr(self, 'vision_image_size', 224)
+      train_bb  = getattr(self, 'vision_train_backbones', False)
+
+      # Collect and normalize input images to [0,1]
+      imgs = [obs[k] for k in sorted(self.imgkeys)]
+      assert all(x.dtype == jnp.uint8 for x in imgs)
+      x = nn.cast(jnp.concatenate(imgs, -1), force=True) / 255.0
+      # Collapse leading batch/time dims
+      x = x.reshape((-1, *x.shape[bdims:]))
+
+      print(x.max(), x.min(), x.shape)
+
+      # Resize to 224x224 for both branches
+      import jax.image as jimage
+      x = jimage.resize(x, (x.shape[0], img_size, img_size, x.shape[-1]), method='linear')
+
+      # Branch-specific normalization
+      # CLIP channel-wise mean/std
+      CLIP_MEAN = jnp.array([0.48145466, 0.4578275, 0.40821073])
+      CLIP_STD  = jnp.array([0.26862954, 0.26130258, 0.27577711])
+      x_clip = (x - CLIP_MEAN) / CLIP_STD
+
+      # DINOv2 (ImageNet) mean/std
+      IMN_MEAN = jnp.array([0.485, 0.456, 0.406])
+      IMN_STD  = jnp.array([0.229, 0.224, 0.225])
+      x_dino = (x - IMN_MEAN) / IMN_STD
+
+      # Channels-first for HF Flax vision models: [B,C,H,W]
+      x_clip_chw = jnp.transpose(x_clip, (0, 3, 1, 2))
+      x_dino_chw = jnp.transpose(x_dino, (0, 3, 1, 2))
+
+      # Forward CLIP
+      clip_out = clip_model(
+          pixel_values=x_clip_chw,
+          params=clip_params_np,
+          train=bool(train_bb),
+          return_dict=True,
+      )
+      clip_feat = getattr(clip_out, 'pooler_output', None)
+      print('clip feat', clip_feat.shape)
+      if clip_feat is None:
+        clip_feat = clip_out.last_hidden_state[:, 0]  # CLS
+
+      # Forward DINOv2
+      dino_out = dino_model(
+          pixel_values=x_dino_chw,
+          params=dino_params_np,
+          train=bool(train_bb),
+          return_dict=True,
+      )
+      dino_feat = getattr(dino_out, 'pooler_output', None)
+      print('dino feat', clip_feat.shape)
+      if dino_feat is None:
+        dino_feat = dino_out.last_hidden_state[:, 0]  # CLS
+
+      # Stop gradients from flowing back to frozen backbones
+      clip_feat = sg(clip_feat)
+      dino_feat = sg(dino_feat)
+
+      # Cast to compute dtype after stop_gradient
+      clip_feat = nn.cast(clip_feat)
+      dino_feat = nn.cast(dino_feat)
+
+      # Concatenate features
+      vision_concat = jnp.concatenate([clip_feat, dino_feat], axis=-1)
+
+      # Project concatenated features to units
+      vision_proj = self.sub('visionproj', nn.Linear, self.units, **self.kw)(vision_concat)
+      vision_proj = nn.act(self.act)(self.sub('visionprojnorm', nn.Norm, self.norm)(vision_proj))
+      outs.append(vision_proj)
+
+    if self.imgkeys and False:
       K = self.kernel
       imgs = [obs[k] for k in sorted(self.imgkeys)]
       assert all(x.dtype == jnp.uint8 for x in imgs)

@@ -160,7 +160,7 @@ class VLMWrapper:
                 AutoModelForCausalLM.from_pretrained(
                     self.model_id,
                     torch_dtype=dtype,
-                    trust_remote_code=True,
+                    trust_remote_code=False,
                 )
                 .to(self.device)
                 .eval()

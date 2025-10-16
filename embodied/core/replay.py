@@ -70,7 +70,7 @@ class Replay:
       padding="max_length",
       truncation=True,
       max_length=32,
-      add_special_tokens=True,
+      # add_special_tokens=True,
     ) 
     if self.tokenizer.pad_token_id is None:
       if self.tokenizer.eos_token is not None:

@@ -32,6 +32,9 @@ def main(argv=None):
   
   global vlm
   global embedder
+  from .encoder import load_flax_vision_encoders
+  clip_model, clip_params_np, dino_model, dino_params_np = load_flax_vision_encoders('nreimers/MiniLM-L6-H384-uncased')  # or your Flax choice
+
   if config.agent.use_vlm:
     from .encoder import load_flax_text_encoder
     lang_model, lang_params = load_flax_text_encoder('nreimers/MiniLM-L6-H384-uncased')  # or your Flax choice
@@ -84,7 +87,7 @@ def main(argv=None):
 
   if config.script == 'train':
     embodied.run.train(
-        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params), vision_encoder=(clip_model, clip_params_np, dino_model, dino_params_np)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_env, config),
         bind(make_stream, config),
@@ -95,7 +98,7 @@ def main(argv=None):
 
   elif config.script == 'train_eval':
     embodied.run.train_eval(
-        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params), vision_encoder=(clip_model, clip_params_np, dino_model, dino_params_np)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_replay, config, 'eval_replay', vlm, embedder, 'eval'),
         bind(make_env, config),
@@ -108,7 +111,7 @@ def main(argv=None):
 
   elif config.script == 'eval_only':
     embodied.run.eval_only(
-        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params), vision_encoder=(clip_model, clip_params_np, dino_model, dino_params_np)),
         bind(make_env, config),
         bind(make_logger, config),
         vlm, 
@@ -117,7 +120,7 @@ def main(argv=None):
 
   elif config.script == 'parallel':
     embodied.run.parallel.combined(
-        bind(make_agent, config, text_encoder=(lang_model, lang_params)),
+        bind(make_agent, config, text_encoder=(lang_model, lang_params), vision_encoder=(clip_model, clip_params_np, dino_model, dino_params_np)),
         bind(make_replay, config, 'replay', vlm, embedder),
         bind(make_replay, config, 'replay_eval', vlm, embedder, 'eval'),
         bind(make_env, config),
@@ -149,7 +152,7 @@ def main(argv=None):
     raise NotImplementedError(config.script)
 
 
-def make_agent(config, text_encoder):
+def make_agent(config, text_encoder, vision_encoder):
   from .agent import Agent
   env = make_env(config, 0)
   notlog = lambda k: not k.startswith('log/')
@@ -172,7 +175,7 @@ def make_agent(config, text_encoder):
       report_length=config.report_length,
       replica=config.replica,
       replicas=config.replicas
-  ), text_encoder=text_encoder)
+  ), text_encoder=text_encoder, vision_encoder=vision_encoder)
 
 def make_logger(config):
   step = elements.Counter()

@@ -35,14 +35,14 @@ class Options:
 
 class Agent(embodied.Agent):
 
-  def __new__(subcls, obs_space, act_space, config, text_encoder=None):
+  def __new__(subcls, obs_space, act_space, config, text_encoder=None, vision_encoder=None):
     keys = Options.__dataclass_fields__
     options = {k: v for k, v in config.jax.items() if k in keys}
     setup = {k: v for k, v in config.jax.items() if k not in keys}
     jaxcfg = Options(**options)
     internal.setup(**setup)
     model = super().__new__(subcls)
-    model.__init__(obs_space, act_space, config, text_encoder)
+    model.__init__(obs_space, act_space, config, text_encoder, vision_encoder)
     outer = super().__new__(Agent)
     outer.__init__(model, obs_space, act_space, config, jaxcfg)
     return outer
