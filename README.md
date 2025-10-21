@@ -113,8 +113,11 @@ Instructable-Agents-main/
 ├── baselines.yaml            # Optional preset baselines
 
 ├── Dockerfile                # Reproducible JAX/Flax CUDA container
+
 ├── entrypoint.sh             # Container entrypoint
+
 ├── requirements.txt          # Python deps (JAX/Flax, envs, transformers, etc.)
+
 └── setup.py                  # Editable install
 
 ## Troublesshooting & Tips (High-Level)
