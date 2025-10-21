@@ -49,10 +49,27 @@ pip install -e .
 ```
 
 ### Running
+If you are using docker, any script will start with
+```
+docker run \
+ --network=host \ \\give access to network
+ -it --rm \
+ --gpus '"device=3,4"' \
+ -p 8888:8888 \ \\(optional, forward port on some environments API)
+ --name vlminterface_run5 \
+ -v ~/logdir/docker:/root/logdir \ \\map your logs/checkpoints path to the path on the right
+ -v ~/.cache:/root/.cache \ \\map your cache path to the path on the right
+ -v "$PWD":/app   -w /app \ \\the scripts you use will be your local scripts, skipping the need to overwrite to container
+ vlminterface:latest
+```
+
+Training Loop:
+```bash
+bash scripts/[env_you_want_to_train_on].sh
+```
 
 Inference Loop:
 ```bash
-CUDA_VISIBLE_DEVICES=0 \
 python async_inference.py \
   --task overcooked_l2_simple \
   --from_checkpoint /path/to/checkpoint \
@@ -95,13 +112,13 @@ Instructable-Agents-main/
 
 ## Troublesshooting & Tips (High-Level)
 
-### Checkpoints
+#### Checkpoints
 - Pass the path with --from_checkpoint for loading from trained checkpoint.
 - Loading is done via elements.Checkpoint and keys=["agent"].
-### Environment Assumptions
+#### Environment Assumptions
 - The env observation dict should include (optionally) an image key (HxWxC, uint8 or [0,1] float).
   This is used only for planner context frames.\
-### Tips & Troubleshooting
+#### Tips & Troubleshooting
 - **CUDA/JAX:** If JAX can't find CUDA, ensure your driver is new enough and you installed the matching jax[cuda12_pip] wheel.
 - **VLM auth:** Some HF models require login or acceptance; use huggingface-cli login.
 - **Throughput:** For slow VLM planners, lower --max_new_tokens, increase --temperature, or reduce frame history.
