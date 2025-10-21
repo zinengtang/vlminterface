@@ -97,16 +97,23 @@ python async_inference.py \
 
 ## Code Structure
 Instructable-Agents-main/
+
 ├── dreamerv3/                # DreamerV3-based controller + encoders + configs
+
 ├── embodied/                 # Minimal RL framework (envs, JAX utils, wrappers)
+
 ├── inference/                # Asynchronous planner–controller inference scripts
+
 ├── prompts/                  # Long-horizon prompt snippets for VLM planning
+
 ├── scripts/                  # One-liners for common tasks (envs, profiling)
+
 ├── app.py                    # Flask demo server (controller + manual instr)
+
 ├── baselines.yaml            # Optional preset baselines
+
 ├── Dockerfile                # Reproducible JAX/Flax CUDA container
 ├── entrypoint.sh             # Container entrypoint
-├── README.md                 # Project overview and quick start
 ├── requirements.txt          # Python deps (JAX/Flax, envs, transformers, etc.)
 └── setup.py                  # Editable install
 
